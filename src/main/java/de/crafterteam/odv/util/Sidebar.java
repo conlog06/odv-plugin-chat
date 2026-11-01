@@ -1,10 +1,13 @@
 package de.crafterteam.odv.util;
 
+import io.papermc.paper.scoreboard.numbers.NumberFormat;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Score;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
@@ -13,27 +16,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Flackerfreies 1.8-Scoreboard (Zeilen über Team-Prefix/Suffix, je max. 16 Zeichen).
- * Zusätzlich verwaltet es die farbigen Nametags auf demselben Scoreboard.
- */
+/** Modernes Sidebar-Scoreboard: Zeilen als Components, ohne rote Zahlen. */
 public class Sidebar {
 
-    private static final int MAX_LINES = 15;
+    private static final int MAX = 15;
 
     private final Scoreboard board;
     private final Objective objective;
     private int shown;
+    private String title = "";
 
     public Sidebar(Player player, String title) {
         board = Bukkit.getScoreboardManager().getNewScoreboard();
-        objective = board.registerNewObjective("meetup", "dummy");
+        objective = board.registerNewObjective("odv", Criteria.DUMMY, Txt.c(title));
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-        setTitle(title);
-        for (int i = 0; i < MAX_LINES; i++) {
-            Team t = board.registerNewTeam("line" + i);
-            t.addEntry(entry(i));
-        }
+        objective.numberFormat(NumberFormat.blank());
+        this.title = title;
         player.setScoreboard(board);
     }
 
@@ -41,68 +39,40 @@ public class Sidebar {
         return board;
     }
 
-    public void setTitle(String title) {
-        objective.setDisplayName(title.length() > 32 ? title.substring(0, 32) : title);
-    }
-
-    private static String entry(int i) {
-        return ChatColor.values()[i].toString() + ChatColor.RESET;
+    public void setTitle(String t) {
+        if (!t.equals(title)) {
+            title = t;
+            objective.displayName(Txt.c(t));
+        }
     }
 
     public void setLines(List<String> lines) {
-        int size = Math.min(MAX_LINES, lines.size());
+        int size = Math.min(MAX, lines.size());
         for (int i = 0; i < size; i++) {
-            int score = size - i;
-            String text = lines.get(i);
-            Team t = board.getTeam("line" + i);
-            String[] split = split(text);
-            if (!split[0].equals(t.getPrefix())) t.setPrefix(split[0]);
-            if (!split[1].equals(t.getSuffix())) t.setSuffix(split[1]);
-            objective.getScore(entry(i)).setScore(score);
+            Score sc = objective.getScore("l" + i);
+            sc.customName(Txt.c(lines.get(i)));
+            sc.setScore(size - i);
         }
-        for (int i = size; i < shown; i++) {
-            board.resetScores(entry(i));
-        }
+        for (int i = size; i < shown; i++) board.resetScores("l" + i);
         shown = size;
     }
 
-    /** Teilt bis zu 32 Zeichen auf Prefix/Suffix auf und überträgt die Farbe. */
-    private static String[] split(String text) {
-        if (text.length() <= 16) return new String[]{text, ""};
-        int cut = 16;
-        if (text.charAt(cut - 1) == ChatColor.COLOR_CHAR) cut--;
-        String prefix = text.substring(0, cut);
-        String rest = text.substring(cut);
-        String lastColors = ChatColor.getLastColors(prefix);
-        if (!rest.startsWith(String.valueOf(ChatColor.COLOR_CHAR))) rest = (lastColors.isEmpty() ? "§f" : lastColors) + rest;
-        if (rest.length() > 16) rest = rest.substring(0, 16);
-        return new String[]{prefix, rest};
-    }
-
-    /**
-     * Setzt Nametag-Teams: key -> (prefix, Spielernamen).
-     */
-    public void setNametags(Map<String, String> prefixes, Map<String, Set<String>> members) {
-        Set<String> wanted = new HashSet<String>();
+    /** Nametag-Teams: key -> (Farbe, Prefix, Spieler). */
+    public void setNametags(Map<String, NamedTextColor> colors, Map<String, String> prefixes, Map<String, Set<String>> members) {
+        Set<String> wanted = new HashSet<>();
         for (Map.Entry<String, Set<String>> e : members.entrySet()) {
-            String name = "nt" + e.getKey();
+            String name = ("nt" + e.getKey());
             if (name.length() > 16) name = name.substring(0, 16);
             wanted.add(name);
             Team t = board.getTeam(name);
             if (t == null) t = board.registerNewTeam(name);
-            String prefix = prefixes.get(e.getKey());
-            if (prefix == null) prefix = "";
-            if (prefix.length() > 16) prefix = prefix.substring(0, 16);
-            if (!prefix.equals(t.getPrefix())) t.setPrefix(prefix);
-            for (String entry : new HashSet<String>(t.getEntries())) {
-                if (!e.getValue().contains(entry)) t.removeEntry(entry);
-            }
-            for (String player : e.getValue()) {
-                if (!t.hasEntry(player)) t.addEntry(player);
-            }
+            NamedTextColor c = colors.get(e.getKey());
+            if (c != null && !c.equals(t.color())) t.color(c);
+            String pre = prefixes.getOrDefault(e.getKey(), "");
+            t.prefix(Txt.c(pre));
+            for (String entry : new HashSet<>(t.getEntries())) if (!e.getValue().contains(entry)) t.removeEntry(entry);
+            for (String p : e.getValue()) if (!t.hasEntry(p)) t.addEntry(p);
         }
-        for (Team t : new HashSet<Team>(board.getTeams())) {
-            if (t.getName().startsWith("nt") && !wanted.contains(t.getName())) t.unregister();
-        }
+        for (Team t : new HashSet<>(board.getTeams())) if (t.getName().startsWith("nt") && !wanted.contains(t.getName())) t.unregister();
     }
 }

@@ -2,6 +2,7 @@ package de.crafterteam.odv.team;
 
 import de.crafterteam.odv.OdvPlugin;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -19,23 +20,24 @@ public class TeamManager {
             ChatColor.AQUA, ChatColor.LIGHT_PURPLE, ChatColor.GOLD, ChatColor.DARK_PURPLE, ChatColor.WHITE,
             ChatColor.GRAY, ChatColor.DARK_AQUA, ChatColor.DARK_GREEN, ChatColor.DARK_RED, ChatColor.BLACK,
             ChatColor.DARK_GRAY, ChatColor.DARK_BLUE};
-    private static final short[] WOOL = {14, 11, 5, 4, 3, 6, 1, 10, 0, 8, 9, 13, 12, 15, 7, 11};
+    private static final Material[] WOOL = {Material.RED_WOOL, Material.BLUE_WOOL, Material.LIME_WOOL, Material.YELLOW_WOOL,
+            Material.LIGHT_BLUE_WOOL, Material.PINK_WOOL, Material.ORANGE_WOOL, Material.PURPLE_WOOL, Material.WHITE_WOOL,
+            Material.LIGHT_GRAY_WOOL, Material.CYAN_WOOL, Material.GREEN_WOOL, Material.BROWN_WOOL, Material.BLACK_WOOL,
+            Material.GRAY_WOOL, Material.BLUE_WOOL};
 
     private final OdvPlugin plugin;
-    private final List<MTeam> teams = new ArrayList<MTeam>();
+    private final List<MTeam> teams = new ArrayList<>();
 
     public TeamManager(OdvPlugin plugin) {
         this.plugin = plugin;
     }
 
-    /** Wählbare Teams neu aufbauen (Lobby). */
     public void reset() {
         teams.clear();
         if (plugin.settings().isSolo()) return;
         for (int i = 0; i < plugin.settings().teamCount; i++) {
             int c = i % 16;
-            String name = NAMES[c] + (i >= 16 ? " " + (i / 16 + 1) : "");
-            teams.add(new MTeam(i + 1, name, COLORS[c], WOOL[c]));
+            teams.add(new MTeam(i + 1, NAMES[c] + (i >= 16 ? " " + (i / 16 + 1) : ""), COLORS[c], WOOL[c]));
         }
     }
 
@@ -58,6 +60,7 @@ public class TeamManager {
     }
 
     public boolean sameTeam(UUID a, UUID b) {
+        if (a.equals(b)) return true;
         MTeam t = getTeam(a);
         return t != null && t.getMembers().contains(b);
     }
@@ -70,15 +73,14 @@ public class TeamManager {
         for (MTeam t : teams) t.getMembers().remove(id);
     }
 
-    public boolean join(Player p, MTeam team) {
-        if (team.getMembers().contains(p.getUniqueId())) return true;
-        if (isFull(team)) return false;
+    public boolean join(Player p, MTeam t) {
+        if (t.getMembers().contains(p.getUniqueId())) return true;
+        if (isFull(t)) return false;
         leave(p.getUniqueId());
-        team.getMembers().add(p.getUniqueId());
+        t.getMembers().add(p.getUniqueId());
         return true;
     }
 
-    /** Freies Team: zuerst angefangene Teams auffüllen. */
     public boolean joinRandom(Player p) {
         MTeam best = null;
         for (MTeam t : teams) {
@@ -88,27 +90,22 @@ public class TeamManager {
         return best != null && join(p, best);
     }
 
-    /** Platz für alle Teilnehmer? */
     public boolean hasCapacity(int players) {
         return plugin.settings().isSolo() || players <= plugin.settings().teamCount * plugin.settings().teamSize;
     }
 
-    /**
-     * Vor dem Start: nur Teilnehmer behalten, Rest verteilen, leere Teams entfernen.
-     * Solo: jeder Spieler bekommt sein eigenes Team.
-     */
     public void finalizeTeams(Collection<? extends Player> players) {
         if (plugin.settings().isSolo()) {
             teams.clear();
             int i = 1;
             for (Player p : players) {
-                MTeam t = new MTeam(i++, p.getName(), ChatColor.WHITE, (short) 0);
+                MTeam t = new MTeam(i++, p.getName(), ChatColor.WHITE, Material.WHITE_WOOL);
                 t.getMembers().add(p.getUniqueId());
                 teams.add(t);
             }
             return;
         }
-        Set<UUID> ids = new HashSet<UUID>();
+        Set<UUID> ids = new HashSet<>();
         for (Player p : players) ids.add(p.getUniqueId());
         for (MTeam t : teams) t.getMembers().retainAll(ids);
         for (Player p : players) {
@@ -120,23 +117,19 @@ public class TeamManager {
             }
             if (best != null) best.getMembers().add(p.getUniqueId());
         }
-        List<MTeam> empty = new ArrayList<MTeam>();
-        for (MTeam t : teams) if (t.getMembers().isEmpty()) empty.add(t);
-        teams.removeAll(empty);
+        teams.removeIf(t -> t.getMembers().isEmpty());
     }
 
-    /** Anzahl der Teams, auf die die Teilnehmer verteilt würden. */
     public int countTeamsAfterFill(int players) {
         if (plugin.settings().isSolo()) return players;
-        int used = 0, free = 0;
+        int used = 0, free = 0, assigned = 0;
         for (MTeam t : teams) {
+            assigned += t.getMembers().size();
             if (!t.getMembers().isEmpty()) {
                 used++;
                 free += plugin.settings().teamSize - t.getMembers().size();
             }
         }
-        int assigned = 0;
-        for (MTeam t : teams) assigned += t.getMembers().size();
         int rest = Math.max(0, players - assigned - free);
         return used + (int) Math.ceil(rest / (double) plugin.settings().teamSize);
     }

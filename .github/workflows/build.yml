@@ -1,0 +1,45 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Build
+        run: mvn -B -q package
+
+      - name: Version lesen
+        id: v
+        run: echo "version=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ODVMeetup-${{ steps.v.outputs.version }}
+          path: target/ODVMeetup-*.jar
+
+      - name: Release veröffentlichen
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.v.outputs.version }}
+          name: ODVMeetup ${{ steps.v.outputs.version }} (Paper 26.3)
+          make_latest: true
+          files: target/ODVMeetup-*.jar
+          body: |
+            ODV & Meetup für **Paper 26.3** (Java 21+).
+            JAR in `plugins/` legen, Server starten, ingame `/odv` → Schnellsetup.
+            Die alte 1.8.8-Version liegt im Branch `legacy-1.8.8`.

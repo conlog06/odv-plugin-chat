@@ -1,70 +1,70 @@
-# ODVMeetup 2.0 – ODV & Meetup für 1.8.8 / 1.8.9
+# ODVMeetup 3.0 – ODV & Meetup für Paper 26.3
 
 ## ⬇️ Download
-**[ODVMeetup-2.0.0.jar herunterladen](https://github.com/conlog06/odv-plugin-chat/raw/main/download/ODVMeetup-2.0.0.jar)**
+**[ODVMeetup-3.0.0.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.0.0.jar)**
+· alle Versionen unter [Releases](https://github.com/conlog06/odv-plugin-chat/releases)
 
-Server: **Spigot/Paper 1.8.8** (Java 8+) · Spieler joinen mit **1.8.9** · keine weiteren Plugins nötig.
+Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite-Treiber bringt Paper mit).
+1.8.9-Clients: mit ViaVersion + ViaRewind möglich.
+Ältere Version für Spigot 1.8.8: Branch [`legacy-1.8.8`](https://github.com/conlog06/odv-plugin-chat/tree/legacy-1.8.8)
+([JAR](https://github.com/conlog06/odv-plugin-chat/raw/legacy-1.8.8/download/ODVMeetup-2.0.0.jar)).
 
 ## In 3 Klicks spielbereit
 1. JAR nach `plugins/`, Server starten, als OP joinen.
-2. `/odv` → **① Schnellsetup** – neue Welt, Lobby-Bau in der Mitte, Border, Map-Vorgenerierung.
-3. **② Modus** wählen (Meetup oder ODV) → **③ Runde starten**.
-
-Danach startet die Runde automatisch, sobald genug Spieler da sind.
-
-## Ablauf
-Lobby → Countdown → **Spawns bauen** → Freeze → Schutzzeit → PvP → Border schrumpft → Sieg (Feuerwerk) → neue Lobby.
+2. `/odv` → **① Schnellsetup**: neue Welt mit mehr Diamanten, Spawn mit **Netherportal + Beacon** auf einer
+   großen Plains-Fläche, **schwebende Lobby** darüber, **Practice-Arena** daneben, Map-Vorgenerierung.
+3. **② Modus** (Meetup/ODV) → **③ Runde starten**.
 
 ## Spawns
-- **Plattformen** (Standard): pro Team eine Schematic im Kreis um die Mitte, auf Bodenhöhe, Blick zur Mitte. Alte Plattformen werden automatisch entfernt. Teammitglieder stehen nebeneinander.
-- **Zufällig**: sichere Orte (kein Wasser/Lava/Baum), Mindestabstand zwischen Teams.
+- **Varo-Löcher** (Standard): im Kreis um den Spawn, jedes Loch mit Slab-Kreuz – **nur in Plains** und
+  **nur auf flachem, natürlichem Boden** (kein Wasser, keine Bäume). Teamnamen schweben über den Spawns.
+- **Plattformen**: eigene `.schem` (WorldEdit 7) oder eingebaute Plattform.
+- **Zufällig**: sichere Orte mit Mindestabstand.
 
-**Eigene Plattform:** `/odv wand` → Ecken markieren → auf den Spawnpunkt stellen → `/odv schem save meinspawn`.
-Eigene Lobby genauso mit `/odv schem save meinelobby lobby`.
-WorldEdit-6-Dateien (`.schematic`) einfach nach `plugins/ODVMeetup/schematics/` kopieren. `.schem` (WE 7) geht nicht.
+## Kampf
+Umschaltbar **1.8.9-PvP** ↔ **26.3-PvP**: kein Angriffs-Cooldown, kein Sweep, **Schwert-Blocken** (Rechtsklick),
+alte Notch-Äpfel, 1.8-Waffenschaden, Schilde an/aus. Kits nutzen 26.x-Items (Netherite, Speer, Wind Charges …).
 
-## Presets
-| | Meetup | ODV |
-|---|---:|---:|
-| Schutzzeit | 30 s | 10 min |
-| Border Start → Ende | 600 → 40 | 1200 → 40 |
-| Schrumpfen ab / Dauer | 5 / 10 min | 15 / 15 min |
-| Standard-Kit | PvP-Ausrüstung | Steinwerkzeug + Essen |
+## Szenarien
+CutClean · BowLess · Triple Ores · Timebomb · Xtra Apples · Timber · RodLess · Backpack (`/backpack`)
 
-## Features
-Setup-Menü mit 7 Kategorien · bis 36 Teams (Teamchat mit `@`) · Solo-Modus · eigene Kits pro Modus ·
-Scoreboard mit Timern & Top-Killern · Tablist · Actionbar mit Border-Abstand · Titel & Sounds ·
-Reconnect-Frist (kein zweites Kit) · Zuschauer-Menü mit Köpfen · Mitspielen/Zuschauen per Item ·
-Statistik (Siege, Kills, Tode, K/D, Top 10) · ZIP-Backups vor jeder Runde · Lobby-Schutz ·
-Friendly Fire inkl. Pfeile, Tränke, TNT, Wölfe · Server-Stop nach Runde (für frische Map).
+## 10 neue Features
+| Feature | Was passiert |
+|---|---|
+| Zuschauer-Voting | Tote stimmen alle 5 Min. per Klick über ein Event ab (Glow, Speed, Gewitter …) |
+| Death-Recap | Nach dem Tod: wer dir in den letzten 30 s wie viel Schaden gemacht hat |
+| Team-Revive | Der Kopf eines Gefallenen droppt – Teammitglied belebt ihn per Rechtsklick (2 Min.) |
+| Supply-Drops | Loot-Kisten mit Lichtstrahl & Koordinaten in der Border |
+| Team-Ping | Schleichen + F oder `/ping`: Markierung nur für dein Team |
+| Kopfgeld | Der Top-Killer leuchtet, sein Bezwinger bekommt eine Belohnung |
+| Adaptive Border | Weniger Lebende → Border schrumpft schneller |
+| Kampf-Heatmap | Nach der Runde: Karte, wo gekämpft wurde |
+| Showdown | Nach dem Zeitlimit: alle in die Mitte, alle leuchten |
+| Zuschauer-Wetten | `/odv bet` – Sieger tippen, Wettpunkte sammeln |
+
+Dazu: **Practice-Arena** in der Lobby (`/practice`), Bossbar mit Timern, Scoreboard wie Mega-ODV, Hologramme mit Top-5.
+
+## Speicher & Anti-Xray
+- Statistik **lokal (SQLite)** oder **MySQL** – `storage.type` in der config.yml.
+- **Anti-Xray**: eigene Erkennung (meldet Admins auffälliges Abbauen, `/odv xray`) + Paper-Anti-Xray per Klick aktivierbar.
+- Mehr Diamanten: `world.diamond-rate` (Standard 2,5×), gilt für neu generierte Welten.
 
 ## Befehle
 | Spieler | |
 |---|---|
-| `/team` · `/team <Nr>` · `/team random` · `/team leave` | Team wählen |
-| `/odv join` · `/odv leave` | mitspielen / zuschauen |
-| `/odv spec` | Spieler beobachten |
-| `/odv stats [Name]` · `/odv top [kills]` | Statistik |
+| `/team` · `/practice` · `/szenarios` · `/backpack` · `/ping` | Lobby & Runde |
+| `/odv join` · `/odv leave` · `/odv spec` · `/odv bet` | Teilnahme & Zuschauen |
+| `/odv stats [Name]` · `/odv top [kills\|wetten\|practice]` | Statistik |
 
 | Admin (`odv.admin`) | |
 |---|---|
-| `/odv` | Setup-Menü |
-| `/odv quick` | Schnellsetup |
-| `/odv start [Sek]` · `/odv stop` | Runde starten / stoppen |
-| `/odv preset odv\|meetup` | Modus |
-| `/odv setlobby` · `/odv setcenter` · `/odv build` | Arena von Hand / Baumodus |
-| `/odv wand` · `/odv schem save <Name> [lobby]` | eigene Schematic |
-| `/odv schem list\|use\|paste\|delete` | Schematics verwalten |
-| `/odv spawns build\|tp\|add\|clear\|undo` | Spawns |
-| `/odv kit save\|give\|reset [odv\|meetup]` | Kits |
-| `/odv pregen` · `/odv backup` · `/odv reload` | Werkzeuge |
-
-## Dateien (`plugins/ODVMeetup/`)
-`config.yml` Regeln · `arena.yml` Welt/Lobby/Spawns · `kits.yml` · `stats.yml` · `schematics/` · `backups/`
-(kompatibel zu ODVMeetup 1.0 – Arena, Kits und Statistik werden übernommen).
-
-Hinweis: Nach einer Runde bleibt die Landschaft verändert. Für frisches Gelände Schnellsetup erneut nutzen
-oder „Server-Stop nach Runde“ + Restart-Script mit Welt-Reset.
+| `/odv` · `/odv quick` | Setup-Menü · Schnellsetup |
+| `/odv start [Sek]` · `/odv stop` · `/odv host` · `/odv preset odv\|meetup` | Runde |
+| `/odv setlobby\|setcenter\|setpractice\|build` | Arena von Hand |
+| `/odv wand` · `/odv schem save\|list\|paste\|delete` | Schematics (`lobby` als Name = eigene Lobby) |
+| `/odv spawns build\|tp\|clear\|undo` | Spawns |
+| `/odv kit save\|give\|reset [meetup\|odv\|practice]` | Kits |
+| `/odv xray [Name]` · `/odv antixray paper` · `/odv supply` · `/odv pregen\|backup\|reload` | Werkzeuge |
 
 ## Selbst bauen
-`mvn package` (JDK 8+, Spigot-Repo erreichbar) → `target/ODVMeetup-2.0.0.jar`.
+`mvn package` (JDK 21+) → `target/ODVMeetup-3.0.0.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.

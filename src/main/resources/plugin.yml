@@ -1,8 +1,9 @@
 name: ODVMeetup
 version: ${project.version}
 main: de.crafterteam.odv.OdvPlugin
+api-version: '26.3'
 author: Constantin
-description: ODV & Meetup für 1.8.8/1.8.9 – Setup-Menü, Schematic-Spawns, Teams, Statistik
+description: ODV & Meetup für Paper 26.3 – Varo-Spawns, Szenarien, altes PvP, MySQL, Anti-Xray, 10 neue Features
 commands:
   odv:
     description: ODV / Meetup Hauptbefehl
@@ -10,9 +11,19 @@ commands:
   team:
     description: Teamauswahl
     aliases: [teams]
+  practice:
+    description: Practice-Arena in der Lobby
+  szenarios:
+    description: Aktive Szenarien anzeigen
+    aliases: [scenarios, sz]
+  backpack:
+    description: Team-Rucksack (Szenario Backpack)
+    aliases: [bp]
+  ping:
+    description: Markierung für dein Team setzen
 permissions:
   odv.admin:
-    description: Setup, Start/Stop, Spawns, Kits, Backups
+    description: Setup, Start/Stop, Spawns, Kits, Backups, Xray-Meldungen
     default: op
   odv.play:
     description: An Runden teilnehmen

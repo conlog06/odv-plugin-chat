@@ -1,5 +1,5 @@
 # ==============================================================
-#  ODVMeetup 2.0 – ODV & Meetup für Spigot/Paper 1.8.8 (Clients 1.8.9)
+#  ODVMeetup 3.0 – ODV & Meetup für Paper 26.3
 #  Am einfachsten alles ingame einstellen:  /odv
 #  Zeiten in SEKUNDEN, Border-Werte sind DURCHMESSER.
 # ==============================================================
@@ -7,43 +7,99 @@
 mode: MEETUP                  # MEETUP oder ODV (Presets im Menü)
 prefix: "&b&lODV &8» &7"
 server-ip: "dein-server.net"
+max-players: 50               # nur Anzeige im Scoreboard
 
 teams:
-  size: 1                     # 1 = Solo
-  count: 16                   # 2 bis 36
+  size: 2                     # 1 = Solo
+  count: 25                   # 2 bis 45
   friendly-fire: false
 
 match:
   min-players: 2
-  auto-start: true            # Countdown startet automatisch ab min-players
+  auto-start: true
   countdown: 30
-  freeze: 10                  # eingefroren auf dem Spawn
-  grace: 30                   # Schutzzeit ohne PvP (nach dem Freeze)
+  freeze: 10
+  grace: 30                   # Schutzzeit ohne PvP
   end-delay: 15
-  disconnect-grace: 60        # so lange darf man nach einem Disconnect zurückkommen
+  disconnect-grace: 60
   natural-regeneration: true
   golden-apple-on-death: true
   lightning-on-death: true
-  stop-server-on-end: false   # true = Server stoppt nach der Runde (frische Map per Restart-Script)
+  nether: true                # Netherportal am Spawn nutzbar
+  time-limit: 45              # Minuten bis zum Showdown (Feature)
+  stop-server-on-end: false
+
+combat:
+  old-pvp: true               # 1.8.9-Kampf: kein Cooldown, kein Sweep
+  sword-blocking: true        # Schwerter blocken wie in 1.8 (Rechtsklick)
+  shields: false
+  old-golden-apples: true     # Notch-Apfel wie in 1.8
+  old-damage: true            # Schwert-/Axt-Schaden wie in 1.8
 
 border:
   initial: 600
   final: 40
-  shrink-after: 300           # ab Rundenbeginn
+  shrink-after: 300
   shrink-duration: 600
   damage: 1.0
 
+world:
+  diamond-rate: 2.5           # 1.0 = normal, 2.5 = 2,5x so viele Diamanten
+  gold-rate: 1.5
+  plains-only: true           # Spieler-Spawns nur in Plains-Biomen
+  natural-only: true          # nur flacher, natürlicher Boden (kein Wasser, keine Bäume)
+
 spawn:
-  mode: PLATFORM              # PLATFORM = Schematic-Plattformen im Kreis | SCATTER = zufällig & sicher
-  team-schematic: plattform   # Datei in schematics/ (ohne .schematic)
-  lobby-schematic: lobby
-  radius: 0                   # Plattform-Kreis, 0 = automatisch
-  y-offset: 0
-  paste-air: true
-  regenerate-on-start: true
-  protection-radius: 15       # Lobby-Bau in der Mitte ist geschützt
+  style: HOLES                # HOLES = Varo-Löcher | PLATFORM = Schematic | SCATTER = zufällig
+  slab: "minecraft:smooth_stone_slab[type=top]"
+  name-tags: true             # schwebender Teamname über jedem Spawn
+  team-schematic: plattform   # Datei in schematics/ (.schem)
+  radius: 0                   # 0 = automatisch
   min-team-distance: 40       # nur SCATTER
-  blocks-per-tick: 2000
+  protection-radius: 12       # Mittel-Spawn geschützt
+  regenerate-on-start: true
+  blocks-per-tick: 4000
+
+storage:
+  type: LOCAL                 # LOCAL (SQLite-Datei) oder MYSQL
+  mysql:
+    host: localhost
+    port: 3306
+    database: odv
+    user: root
+    password: ""
+    table-prefix: odv_
+    ssl: false
+
+anti-xray:
+  detection: true             # verdächtiges Abbauen melden
+  alert-veins: 5              # versteckte Dia-/Debris-Adern bis zur Meldung
+
+scenarios:
+  cutclean: false
+  bowless: false
+  triple-ores: false
+  timebomb: true
+  xtra-apples: true
+  timber: false
+  rodless: false
+  backpack: false
+  timebomb-seconds: 30
+  xtra-apples-chance: 4.0     # Prozent pro Blatt
+
+features:
+  spectator-vote: true
+  death-recap: true
+  revive: true
+  supply-drops: true
+  team-ping: true
+  bounty: true
+  adaptive-border: true
+  heatmap: true
+  showdown: true
+  betting: true
+  practice: true
+  supply-interval: 300        # Sekunden
 
 backup:
   on-start: true

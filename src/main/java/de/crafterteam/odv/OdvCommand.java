@@ -1,14 +1,15 @@
 package de.crafterteam.odv;
 
-import de.crafterteam.odv.game.GameManager;
+import de.crafterteam.odv.data.Kits;
+import de.crafterteam.odv.data.Stats;
 import de.crafterteam.odv.game.GameState;
+import de.crafterteam.odv.gui.Menus;
 import de.crafterteam.odv.gui.SetupGui;
-import de.crafterteam.odv.gui.SpectatorGui;
-import de.crafterteam.odv.gui.TeamGui;
 import de.crafterteam.odv.schematic.Schematic;
-import de.crafterteam.odv.schematic.Wand;
 import de.crafterteam.odv.team.MTeam;
-import de.crafterteam.odv.util.ChunkPregen;
+import de.crafterteam.odv.util.Txt;
+import de.crafterteam.odv.world.ChunkPregen;
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -20,11 +21,9 @@ import org.bukkit.entity.Player;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 
 public class OdvCommand implements TabExecutor {
 
@@ -39,15 +38,36 @@ public class OdvCommand implements TabExecutor {
     }
 
     private void tell(CommandSender to, String msg) {
-        to.sendMessage(s().prefix + msg);
+        Txt.send(to, s().prefix + msg);
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        Player p = sender instanceof Player ? (Player) sender : null;
-        if (cmd.getName().equalsIgnoreCase("team")) {
-            if (p != null) team(p, args);
-            return true;
+        Player p = sender instanceof Player pl ? pl : null;
+        switch (cmd.getName().toLowerCase(Locale.ROOT)) {
+            case "team" -> {
+                if (p != null) team(p, args);
+                return true;
+            }
+            case "practice" -> {
+                if (p != null) plugin.practice().toggle(p);
+                return true;
+            }
+            case "szenarios" -> {
+                if (p != null) Menus.scenarios(plugin, p);
+                else tell(sender, "§7Szenarien: §e" + plugin.scenarios().activeList());
+                return true;
+            }
+            case "backpack" -> {
+                if (p != null) plugin.scenarios().openBackpack(p);
+                return true;
+            }
+            case "ping" -> {
+                if (p != null) plugin.features().ping(p);
+                return true;
+            }
+            default -> {
+            }
         }
         if (args.length == 0) {
             if (p != null && p.hasPermission("odv.admin")) SetupGui.open(plugin, p, SetupGui.Page.MAIN);
@@ -56,208 +76,235 @@ public class OdvCommand implements TabExecutor {
         }
         String sub = args[0].toLowerCase(Locale.ROOT);
 
-        // ---------- für alle ----------
+        // ---------------- für alle
         switch (sub) {
-            case "help":
-            case "hilfe":
+            case "help", "hilfe" -> {
                 help(sender);
                 return true;
-            case "teams":
-                if (p != null) TeamGui.open(plugin, p);
+            }
+            case "teams" -> {
+                if (p != null) Menus.teams(plugin, p);
                 return true;
-            case "join":
-            case "leave":
+            }
+            case "join", "leave" -> {
                 if (p == null) return true;
-                boolean watching = plugin.game().isOptedOut(p);
-                if (sub.equals("join") == watching) plugin.game().toggleParticipation(p);
+                if (sub.equals("join") == plugin.game().isOptedOut(p)) plugin.game().toggleParticipation(p);
                 else tell(p, sub.equals("join") ? "§7Du spielst bereits mit." : "§7Du schaust bereits zu.");
                 return true;
-            case "spec":
-            case "spectate":
-                if (p != null) SpectatorGui.open(plugin, p, 0);
-                return true;
-            case "stats": {
-                UUID id = p != null ? p.getUniqueId() : null;
-                if (args.length >= 2) id = plugin.stats().find(args[1]);
-                if (id == null) tell(sender, "§cSpieler nicht gefunden.");
-                else showStats(sender, id);
+            }
+            case "spec", "spectate" -> {
+                if (p != null) Menus.spectate(plugin, p, 0);
                 return true;
             }
-            case "top": {
-                String key = args.length >= 2 && args[1].equalsIgnoreCase("kills") ? "kills" : "wins";
-                sender.sendMessage("§8§m        §r §b§lTop 10 – " + (key.equals("wins") ? "Siege" : "Kills") + " §8§m        ");
-                int i = 1;
-                for (Map.Entry<String, Integer> e : plugin.stats().top(key, 10)) {
-                    sender.sendMessage((i <= 3 ? "§6" : "§7") + "#" + i++ + " §f" + e.getKey() + " §8- §e" + e.getValue());
-                }
-                if (i == 1) sender.sendMessage("§7Noch keine Einträge.");
+            case "bet", "wette" -> {
+                if (p != null) Menus.bet(plugin, p);
                 return true;
             }
-            default:
-                break;
+            case "vote" -> {
+                if (p != null && args.length >= 2) plugin.features().vote(p, parse(args[1], 0));
+                return true;
+            }
+            case "stats" -> {
+                showStats(sender, args.length >= 2 ? args[1] : p != null ? p.getName() : null);
+                return true;
+            }
+            case "top" -> {
+                String col = args.length >= 2 ? switch (args[1].toLowerCase(Locale.ROOT)) {
+                    case "kills" -> "kills";
+                    case "wetten", "bets" -> "bets";
+                    case "practice" -> "p_kills";
+                    default -> "wins";
+                } : "wins";
+                plugin.stats().top(col, 10, list -> {
+                    Txt.send(sender, "§8§m        §r §b§lTop 10 – " + switch (col) {
+                        case "kills" -> "Kills";
+                        case "bets" -> "Wettpunkte";
+                        case "p_kills" -> "Practice-Kills";
+                        default -> "Siege";
+                    } + " §8§m        ");
+                    int i = 1;
+                    for (Map.Entry<String, Integer> e : list) Txt.send(sender, (i <= 3 ? "§6" : "§7") + "#" + i++ + " §f" + e.getKey() + " §8- §e" + e.getValue());
+                    if (list.isEmpty()) Txt.send(sender, "§7Noch keine Einträge.");
+                });
+                return true;
+            }
+            default -> {
+            }
         }
-
         if (!sender.hasPermission("odv.admin")) {
             help(sender);
             return true;
         }
 
-        // ---------- Admin ----------
+        // ---------------- Admin
         switch (sub) {
-            case "setup":
-            case "menu":
+            case "setup", "menu" -> {
                 if (needPlayer(sender)) SetupGui.open(plugin, p, SetupGui.Page.MAIN);
-                break;
-            case "quick":
-            case "schnellsetup":
-                if (needPlayer(sender) && lobby(sender)) plugin.spawns().quickSetup(p);
-                break;
-            case "start": {
-                int sec = 10;
-                if (args.length >= 2) sec = parse(args[1], 10);
-                String err = plugin.game().forceStart(Math.max(1, sec));
-                if (err != null) tell(sender, err);
-                else plugin.game().broadcast("§aRunde startet in §e" + sec + " §aSekunden. §8(" + sender.getName() + ")");
-                break;
             }
-            case "stop":
-            case "reset":
-                plugin.game().stop();
-                break;
-            case "preset":
-                if (!lobby(sender)) break;
-                if (args.length < 2) {
+            case "quick", "schnellsetup" -> {
+                if (needPlayer(sender) && lobby(sender)) plugin.spawns().quickSetup(p);
+            }
+            case "start" -> {
+                int sec = args.length >= 2 ? Math.max(1, parse(args[1], 10)) : 10;
+                String err = plugin.game().forceStart(sec);
+                if (err != null) tell(sender, err);
+                else {
+                    if (plugin.game().getHost() == null && p != null) plugin.game().setHost(p.getUniqueId());
+                    plugin.game().broadcast("§aRunde startet in §e" + sec + " §aSekunden. §8(" + sender.getName() + ")");
+                }
+            }
+            case "stop", "reset" -> plugin.game().stop();
+            case "host" -> {
+                if (p != null) {
+                    plugin.game().setHost(p.getUniqueId());
+                    tell(sender, "§aDu bist jetzt Host.");
+                }
+            }
+            case "preset" -> {
+                if (!lobby(sender) || args.length < 2) {
                     tell(sender, "§e/odv preset odv|meetup");
-                    break;
+                    return true;
                 }
                 s().preset(args[1].equalsIgnoreCase("odv") ? Settings.Mode.ODV : Settings.Mode.MEETUP);
                 plugin.game().applyWorldSettings();
+                plugin.game().refreshHolograms();
                 tell(sender, "§aPreset " + s().mode.display + " geladen.");
-                break;
-            case "setlobby":
+            }
+            case "setlobby" -> {
                 if (needPlayer(sender) && lobby(sender)) {
                     plugin.arena().setLobby(p.getLocation());
-                    plugin.game().applyWorldSettings();
+                    plugin.game().refreshHolograms();
                     tell(sender, "§aLobby gesetzt.");
                 }
-                break;
-            case "setcenter":
+            }
+            case "setcenter" -> {
                 if (needPlayer(sender) && lobby(sender)) {
-                    try {
-                        plugin.arena().setCenter(p.getLocation());
-                        plugin.game().applyWorldSettings();
-                        tell(sender, "§aMitte gesetzt.");
-                    } catch (IllegalArgumentException e) {
-                        tell(sender, "§c" + e.getMessage());
-                    }
+                    plugin.arena().setCenter(p.getLocation());
+                    plugin.game().applyWorldSettings();
+                    plugin.game().refreshHolograms();
+                    tell(sender, "§aMitte gesetzt.");
                 }
-                break;
-            case "build":
+            }
+            case "setpractice" -> {
+                if (needPlayer(sender)) {
+                    plugin.arena().setPractice(p.getLocation());
+                    plugin.game().resetToLobbyItems();
+                    tell(sender, "§aPractice-Spawn gesetzt.");
+                }
+            }
+            case "build" -> {
                 if (needPlayer(sender) && lobby(sender)) {
                     p.setGameMode(p.getGameMode() == GameMode.CREATIVE ? GameMode.ADVENTURE : GameMode.CREATIVE);
                     tell(sender, "§7Baumodus: " + (p.getGameMode() == GameMode.CREATIVE ? "§aan" : "§caus"));
                 }
-                break;
-            case "kit":
-                kit(sender, p, args);
-                break;
-            case "wand":
-                if (needPlayer(sender)) {
-                    p.getInventory().addItem(Wand.item());
-                    tell(sender, "§7Wand erhalten: §eLinks §7= Pos1, §eRechts §7= Pos2.");
-                }
-                break;
-            case "schem":
-            case "schematic":
-                schem(sender, p, args);
-                break;
-            case "spawns":
-                spawns(sender, p, args);
-                break;
-            case "pregen": {
-                World w = plugin.arena().getWorld();
-                if (ChunkPregen.isRunning()) {
-                    ChunkPregen.stop();
-                    tell(sender, "§cVorgenerierung gestoppt.");
-                } else if (w == null) {
-                    tell(sender, "§cZuerst Arena einrichten.");
-                } else {
-                    Location c = plugin.arena().getCenter();
-                    ChunkPregen.start(plugin, w, c.getBlockX(), c.getBlockZ(), s().borderInitial / 2 + 32, p);
-                }
-                break;
             }
-            case "backup":
-                plugin.stats().backup(sender);
-                break;
-            case "reload":
-                if (!lobby(sender)) break;
-                plugin.reloadAll();
-                tell(sender, "§aKonfiguration neu geladen.");
-                break;
-            default:
-                help(sender);
+            case "kit" -> kit(sender, p, args);
+            case "wand" -> {
+                if (needPlayer(sender)) p.getInventory().addItem(plugin.wand().item());
+            }
+            case "schem", "schematic" -> schem(sender, p, args);
+            case "spawns" -> spawns(sender, p, args);
+            case "supply" -> {
+                if (plugin.game().getState().isIngame()) plugin.features().supplyDrop();
+                else tell(sender, "§cNur während einer Runde.");
+            }
+            case "xray" -> plugin.antiXray().show(sender, args.length >= 2 ? args[1] : null);
+            case "antixray" -> {
+                if (args.length >= 2 && args[1].equalsIgnoreCase("paper")) plugin.antiXray().enablePaper(sender);
+                else tell(sender, "§7Paper-Anti-Xray: " + plugin.antiXray().paperStatus() + " §8| §e/odv antixray paper §7zum Aktivieren");
+            }
+            case "pregen" -> {
+                World w = plugin.arena().getWorld();
+                if (ChunkPregen.isRunning()) ChunkPregen.stop();
+                else if (w != null) {
+                    Location c = plugin.arena().getCenter();
+                    ChunkPregen.start(plugin, w, c.getBlockX(), c.getBlockZ(), s().borderInitial / 2 + 48, p);
+                } else tell(sender, "§cZuerst Arena einrichten.");
+            }
+            case "backup" -> plugin.stats().backup(sender);
+            case "reload" -> {
+                if (lobby(sender)) {
+                    plugin.reloadAll();
+                    tell(sender, "§aKonfiguration neu geladen.");
+                }
+            }
+            default -> help(sender);
         }
         return true;
     }
 
-    // ------------------------------------------------------------------ Teile
+    // ------------------------------------------------------------ Teile
 
     private void team(Player p, String[] args) {
         if (args.length == 0) {
-            TeamGui.open(plugin, p);
+            Menus.teams(plugin, p);
             return;
         }
         if (!plugin.game().getState().isLobby()) {
             tell(p, "§cTeams nur in der Lobby.");
             return;
         }
-        if (args[0].equalsIgnoreCase("leave")) {
-            plugin.teams().leave(p.getUniqueId());
-            tell(p, "§7Team verlassen.");
-        } else if (args[0].equalsIgnoreCase("random")) {
-            if (plugin.teams().joinRandom(p)) tell(p, "§7Du bist in " + plugin.teams().getTeam(p).getDisplayName() + "§7.");
-            else tell(p, "§cAlle Teams sind voll.");
+        if (args[0].equalsIgnoreCase("leave")) plugin.teams().leave(p.getUniqueId());
+        else if (args[0].equalsIgnoreCase("random")) {
+            if (!plugin.teams().joinRandom(p)) tell(p, "§cAlle Teams sind voll.");
         } else {
             MTeam t = plugin.teams().byNumber(parse(args[0], -1));
             if (t == null) tell(p, "§e/team <1-" + plugin.teams().getTeams().size() + "|random|leave>");
-            else if (plugin.teams().join(p, t)) tell(p, "§7Du bist in " + t.getDisplayName() + "§7.");
-            else tell(p, "§cDieses Team ist voll.");
+            else if (!plugin.teams().join(p, t)) tell(p, "§cDieses Team ist voll.");
         }
-        TeamGui.refreshAll(plugin);
+        MTeam now = plugin.teams().getTeam(p);
+        tell(p, now == null ? "§7Kein Team." : "§7Dein Team: " + now.getDisplayName());
+        Menus.refreshAllTeams(plugin);
     }
 
-    public void showStats(CommandSender to, UUID id) {
-        int k = plugin.stats().get(id, "kills"), d = plugin.stats().get(id, "deaths");
+    public void showStats(CommandSender to, String name) {
+        if (name == null) return;
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) {
+            Stats.Entry e = plugin.stats().get(online.getUniqueId());
+            print(to, online.getName(), e.v);
+            return;
+        }
+        plugin.stats().lookup(name, v -> {
+            if (v == null) tell(to, "§cSpieler nicht gefunden.");
+            else print(to, name, v);
+        });
+    }
+
+    private void print(CommandSender to, String name, int[] v) {
+        int k = v[0], d = v[1];
         String kd = d == 0 ? String.valueOf(k) : String.format(Locale.ROOT, "%.2f", k / (double) d);
-        to.sendMessage("§8§m        §r §b§l" + plugin.stats().name(id) + " §8§m        ");
-        to.sendMessage("§7Siege: §6" + plugin.stats().get(id, "wins") + " §8| §7Runden: §f" + plugin.stats().get(id, "games"));
-        to.sendMessage("§7Kills: §c" + k + " §8| §7Tode: §7" + d + " §8| §7K/D: §e" + kd);
+        Txt.send(to, "§8§m        §r §b§l" + name + " §8§m        ");
+        Txt.send(to, "§7Siege: §6" + v[2] + " §8| §7Runden: §f" + v[3] + " §8| §7Wettpunkte: §a" + v[4]);
+        Txt.send(to, "§7Kills: §c" + k + " §8| §7Tode: §7" + d + " §8| §7K/D: §e" + kd);
+        Txt.send(to, "§7Practice: §a" + v[5] + " Kills §8/ §c" + v[6] + " Tode");
     }
 
     private void kit(CommandSender sender, Player p, String[] args) {
         if (!needPlayer(sender) || !lobby(sender)) return;
         if (args.length < 2) {
-            tell(sender, "§e/odv kit save|give|reset [odv|meetup]");
+            tell(sender, "§e/odv kit save|give|reset [meetup|odv|practice]");
             return;
         }
-        Settings.Mode m = args.length >= 3 && args[2].equalsIgnoreCase("odv") ? Settings.Mode.ODV
-                : args.length >= 3 ? Settings.Mode.MEETUP : s().mode;
+        Kits.Type t = s().mode == Settings.Mode.ODV ? Kits.Type.ODV : Kits.Type.MEETUP;
+        if (args.length >= 3) {
+            try {
+                t = Kits.Type.valueOf(args[2].toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
         try {
             switch (args[1].toLowerCase(Locale.ROOT)) {
-                case "save":
-                    plugin.kits().save(p, m, GameManager.MENU_ITEMS);
-                    tell(sender, "§aKit " + m.display + " gespeichert.");
-                    break;
-                case "give":
-                    plugin.kits().give(p, m);
-                    break;
-                case "reset":
-                    plugin.kits().reset(m);
-                    tell(sender, "§7Standard-Kit für " + m.display + " aktiv.");
-                    break;
-                default:
-                    tell(sender, "§e/odv kit save|give|reset [odv|meetup]");
+                case "save" -> {
+                    plugin.kits().save(p, t);
+                    tell(sender, "§aKit " + t + " gespeichert.");
+                }
+                case "give" -> plugin.kits().give(p, t);
+                case "reset" -> {
+                    plugin.kits().reset(t);
+                    tell(sender, "§7Standard-Kit " + t + " aktiv.");
+                }
+                default -> tell(sender, "§e/odv kit save|give|reset [meetup|odv|practice]");
             }
         } catch (IOException e) {
             tell(sender, "§c" + e.getMessage());
@@ -266,15 +313,16 @@ public class OdvCommand implements TabExecutor {
 
     private void schem(CommandSender sender, Player p, String[] args) {
         String action = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "list";
-        String name = args.length >= 3 ? args[2].replace(".schematic", "").replaceAll("[^a-zA-Z0-9_\\-]", "") : null;
+        String name = args.length >= 3 ? args[2].replace(".schem", "").replaceAll("[^a-zA-Z0-9_\\-]", "") : null;
         switch (action) {
-            case "list":
-                tell(sender, "§7Schematics: §f" + (plugin.spawns().list().isEmpty() ? "-" : join(plugin.spawns().list())));
-                tell(sender, "§7Team: §e" + s().teamSchematic + " §8| §7Lobby: §e" + s().lobbySchematic);
-                break;
-            case "save": {
+            case "list" -> {
+                List<String> l = plugin.spawns().list();
+                tell(sender, "§7Schematics: §f" + (l.isEmpty() ? "-" : String.join("§7, §f", l)));
+                tell(sender, "§8Ordner: plugins/ODVMeetup/schematics (.schem aus WorldEdit 7)");
+            }
+            case "save" -> {
                 if (!needPlayer(sender) || name == null || name.isEmpty()) {
-                    tell(sender, "§e/odv schem save <Name>");
+                    tell(sender, "§e/odv schem save <Name> §7– \"lobby\" als Name ersetzt die Lobby");
                     return;
                 }
                 Location a = plugin.wand().getPos1(p), b = plugin.wand().getPos2(p);
@@ -282,92 +330,61 @@ public class OdvCommand implements TabExecutor {
                     tell(sender, "§cZuerst Pos1 & Pos2 mit §e/odv wand §csetzen.");
                     return;
                 }
-                long vol = (long) (Math.abs(a.getBlockX() - b.getBlockX()) + 1) * (Math.abs(a.getBlockY() - b.getBlockY()) + 1)
-                        * (Math.abs(a.getBlockZ() - b.getBlockZ()) + 1);
-                if (vol > Schematic.MAX_VOLUME) {
-                    tell(sender, "§cAuswahl zu groß (" + vol + " Blöcke).");
-                    return;
-                }
                 try {
                     Schematic sc = Schematic.copy(a, b, p.getLocation());
                     sc.save(plugin.spawns().file(name));
-                    boolean asLobby = args.length >= 4 && args[3].equalsIgnoreCase("lobby");
-                    if (asLobby) s().lobbySchematic = name;
-                    else s().teamSchematic = name;
-                    s().save();
-                    tell(sender, "§aGespeichert: §e" + name + " §7(" + sc.getWidth() + "×" + sc.getHeight() + "×" + sc.getLength()
-                            + ") §a→ als " + (asLobby ? "Lobby" : "Team-Plattform") + " gesetzt.");
-                    tell(sender, "§7Spawnpunkt = deine aktuelle Position relativ zum Bau.");
+                    if (!name.equalsIgnoreCase("lobby")) {
+                        s().teamSchematic = name;
+                        s().save();
+                    }
+                    tell(sender, "§aGespeichert: §e" + name + " §7(" + sc.getWidth() + "×" + sc.getHeight() + "×" + sc.getLength() + ")"
+                            + (name.equalsIgnoreCase("lobby") ? " §7– wird beim nächsten Schnellsetup als Lobby genutzt." : " §7– als Team-Plattform gesetzt."));
                 } catch (IOException e) {
                     tell(sender, "§c" + e.getMessage());
                 }
-                break;
             }
-            case "use":
-            case "load": {
-                if (name == null || !plugin.spawns().file(name).exists()) {
-                    tell(sender, "§cNicht gefunden. §7/odv schem list");
-                    return;
-                }
-                if (args.length >= 4 && args[3].equalsIgnoreCase("lobby")) s().lobbySchematic = name;
-                else s().teamSchematic = name;
-                s().save();
-                tell(sender, "§aSchematic gesetzt.");
-                break;
-            }
-            case "paste": {
+            case "paste" -> {
                 if (!needPlayer(sender)) return;
                 try {
                     plugin.spawns().pasteAt(plugin.spawns().load(name != null ? name : s().teamSchematic), p.getLocation(), p);
                 } catch (IOException e) {
                     tell(sender, "§c" + e.getMessage());
                 }
-                break;
             }
-            case "delete": {
+            case "delete" -> {
                 File f = name == null ? null : plugin.spawns().file(name);
                 tell(sender, f != null && f.delete() ? "§aGelöscht." : "§cNicht gefunden.");
-                break;
             }
-            default:
-                tell(sender, "§e/odv schem <list|save|use|paste|delete> [Name] [lobby]");
+            default -> tell(sender, "§e/odv schem <list|save|paste|delete> [Name]");
         }
     }
 
     private void spawns(CommandSender sender, Player p, String[] args) {
         String action = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "list";
         switch (action) {
-            case "build":
-            case "generate":
+            case "build", "generate" -> {
                 if (!lobby(sender)) return;
                 int count = args.length >= 3 ? parse(args[2], 0) : 0;
-                if (count <= 0) count = Math.max(2, s().isSolo() ? plugin.game().candidates().size() : plugin.teams().countTeamsAfterFill(plugin.game().candidates().size()));
-                plugin.spawns().generate(Math.min(500, count), sender, null);
-                break;
-            case "undo":
-            case "remove":
-                plugin.spawns().removePasted(sender);
-                break;
-            case "add":
-                if (needPlayer(sender)) {
-                    plugin.arena().addSpawn(p.getLocation());
-                    tell(sender, "§aSpawn #" + plugin.arena().getSpawns().size() + " hinzugefügt. §7(Tipp: 'Bei Start neu bauen' ausschalten)");
+                if (count <= 0) {
+                    int c = plugin.game().candidates().size();
+                    count = Math.max(2, s().isSolo() ? c : plugin.teams().countTeamsAfterFill(c));
                 }
-                break;
-            case "clear":
-                plugin.arena().setSpawns(new ArrayList<Location>());
-                tell(sender, "§aGespeicherte Spawnpunkte gelöscht.");
-                break;
-            case "tp":
+                plugin.spawns().generate(Math.min(500, count), sender, null);
+            }
+            case "undo", "remove" -> plugin.spawns().removePasted(sender);
+            case "tp" -> {
                 if (!needPlayer(sender)) return;
                 int nr = args.length >= 3 ? parse(args[2], 1) : 1;
                 List<Location> l = plugin.arena().getSpawns();
                 if (nr < 1 || nr > l.size()) tell(sender, "§cSpawn #" + nr + " gibt es nicht (" + l.size() + ").");
-                else p.teleport(l.get(nr - 1));
-                break;
-            default:
-                tell(sender, "§7Spawns: §e" + plugin.arena().getSpawns().size() + " §8| §7Art: §f" + s().spawnMode.display);
-                tell(sender, "§e/odv spawns build [Anzahl] | tp <Nr> | add | clear | undo");
+                else p.teleport(l.get(nr - 1).clone().add(0, 0.2, 0));
+            }
+            case "clear" -> {
+                plugin.arena().setSpawns(new ArrayList<>());
+                tell(sender, "§aGespeicherte Spawnpunkte gelöscht.");
+            }
+            default -> tell(sender, "§7Spawns: §e" + plugin.arena().getSpawns().size() + " §8| §7Art: §f" + s().spawnStyle.display
+                    + " §8| §e/odv spawns build [Anzahl] | tp <Nr> | clear | undo");
         }
     }
 
@@ -391,62 +408,56 @@ public class OdvCommand implements TabExecutor {
         }
     }
 
-    private static String join(List<String> l) {
-        StringBuilder b = new StringBuilder();
-        for (String s : l) b.append(b.length() == 0 ? "" : "§7, §f").append(s);
-        return b.toString();
-    }
-
     private void help(CommandSender s) {
-        s.sendMessage("§8§m          §r " + s().mode.title + " §8§m          ");
-        s.sendMessage("§b/team §7[Nr|random|leave] §8- §7Team wählen");
-        s.sendMessage("§b/odv join §8| §b/odv leave §8- §7mitspielen / zuschauen");
-        s.sendMessage("§b/odv spec §8- §7Spieler beobachten");
-        s.sendMessage("§b/odv stats §7[Name] §8| §b/odv top §7[kills]");
+        Txt.send(s, "§8§m          §r " + s().mode.title + " §8§m          ");
+        Txt.send(s, "§b/team §7[Nr|random|leave] §8| §b/practice §8| §b/szenarios");
+        Txt.send(s, "§b/odv join §8| §b/odv leave §8| §b/odv spec §8| §b/odv bet");
+        Txt.send(s, "§b/odv stats §7[Name] §8| §b/odv top §7[kills|wetten|practice]");
+        Txt.send(s, "§b/ping §7oder §bSchleichen + F §8| §b/backpack");
         if (s.hasPermission("odv.admin")) {
-            s.sendMessage("§c/odv §8- §7Setup-Menü §8(alles per Klick)");
-            s.sendMessage("§c/odv quick §8- §7Schnellsetup: neue Arena + Lobby");
-            s.sendMessage("§c/odv start §7[Sek] §8| §c/odv stop §8| §c/odv preset odv|meetup");
-            s.sendMessage("§c/odv setlobby §8| §c/odv setcenter §8| §c/odv build");
-            s.sendMessage("§c/odv wand §8→ §c/odv schem save <Name> §7[lobby]");
-            s.sendMessage("§c/odv schem list|use|paste|delete §8| §c/odv spawns build|tp|undo");
-            s.sendMessage("§c/odv kit save|give|reset §7[odv|meetup] §8| §c/odv pregen|backup|reload");
+            Txt.send(s, "§c/odv §8- §7Setup-Menü §8| §c/odv quick §8- §7Schnellsetup");
+            Txt.send(s, "§c/odv start §7[Sek] §8| §c/odv stop §8| §c/odv host §8| §c/odv preset odv|meetup");
+            Txt.send(s, "§c/odv setlobby|setcenter|setpractice|build");
+            Txt.send(s, "§c/odv wand §8→ §c/odv schem save <Name> §8| §c/odv schem list|paste|delete");
+            Txt.send(s, "§c/odv spawns build|tp|clear|undo §8| §c/odv kit save|give|reset §7[typ]");
+            Txt.send(s, "§c/odv xray §7[Name] §8| §c/odv antixray paper §8| §c/odv supply §8| §c/odv pregen|backup|reload");
         }
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String alias, String[] args) {
-        List<String> o = new ArrayList<String>();
-        if (cmd.getName().equalsIgnoreCase("team")) {
+        List<String> o = new ArrayList<>();
+        String c = cmd.getName().toLowerCase(Locale.ROOT);
+        if (c.equals("team")) {
             if (args.length == 1) {
                 o.add("random");
                 o.add("leave");
                 for (MTeam t : plugin.teams().getTeams()) o.add(String.valueOf(t.getNumber()));
             }
-        } else if (args.length == 1) {
-            o.addAll(Arrays.asList("help", "teams", "join", "leave", "spec", "stats", "top"));
-            if (sender.hasPermission("odv.admin")) {
-                o.addAll(Arrays.asList("setup", "quick", "start", "stop", "preset", "setlobby", "setcenter", "build",
-                        "kit", "wand", "schem", "spawns", "pregen", "backup", "reload"));
-            }
-        } else if (sender.hasPermission("odv.admin")) {
-            String a = args[0].toLowerCase(Locale.ROOT);
-            if (args.length == 2) {
-                if (a.equals("preset")) o.addAll(Arrays.asList("odv", "meetup"));
-                if (a.equals("kit")) o.addAll(Arrays.asList("save", "give", "reset"));
-                if (a.startsWith("schem")) o.addAll(Arrays.asList("list", "save", "use", "paste", "delete"));
-                if (a.equals("spawns")) o.addAll(Arrays.asList("build", "tp", "add", "clear", "undo"));
-                if (a.equals("top")) o.add("kills");
+        } else if (c.equals("odv")) {
+            if (args.length == 1) {
+                o.addAll(List.of("help", "teams", "join", "leave", "spec", "bet", "stats", "top"));
+                if (sender.hasPermission("odv.admin")) o.addAll(List.of("setup", "quick", "start", "stop", "host", "preset", "setlobby",
+                        "setcenter", "setpractice", "build", "kit", "wand", "schem", "spawns", "supply", "xray", "antixray", "pregen", "backup", "reload"));
+            } else if (args.length == 2) {
+                switch (args[0].toLowerCase(Locale.ROOT)) {
+                    case "preset" -> o.addAll(List.of("odv", "meetup"));
+                    case "kit" -> o.addAll(List.of("save", "give", "reset"));
+                    case "schem", "schematic" -> o.addAll(List.of("list", "save", "paste", "delete"));
+                    case "spawns" -> o.addAll(List.of("build", "tp", "clear", "undo"));
+                    case "top" -> o.addAll(List.of("kills", "wetten", "practice"));
+                    case "antixray" -> o.add("paper");
+                    case "stats", "xray" -> Bukkit.getOnlinePlayers().forEach(pl -> o.add(pl.getName()));
+                    default -> {
+                    }
+                }
             } else if (args.length == 3) {
-                if (a.equals("kit")) o.addAll(Arrays.asList("odv", "meetup"));
-                if (a.startsWith("schem") && !args[1].equalsIgnoreCase("save")) o.addAll(plugin.spawns().list());
-            } else if (args.length == 4 && a.startsWith("schem")) {
-                o.add("lobby");
+                if (args[0].equalsIgnoreCase("kit")) o.addAll(List.of("meetup", "odv", "practice"));
+                if (args[0].toLowerCase(Locale.ROOT).startsWith("schem") && !args[1].equalsIgnoreCase("save")) o.addAll(plugin.spawns().list());
             }
         }
         String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
-        List<String> out = new ArrayList<String>();
-        for (String s : o) if (s.toLowerCase(Locale.ROOT).startsWith(last)) out.add(s);
-        return out;
+        o.removeIf(x -> !x.toLowerCase(Locale.ROOT).startsWith(last));
+        return o;
     }
 }

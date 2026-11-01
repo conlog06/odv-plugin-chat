@@ -1,7 +1,7 @@
 package de.crafterteam.odv.schematic;
 
 import de.crafterteam.odv.OdvPlugin;
-import de.crafterteam.odv.util.ItemBuilder;
+import de.crafterteam.odv.util.Txt;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -11,33 +11,30 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Auswahl-Werkzeug: Linksklick = Pos1, Rechtsklick = Pos2.
- */
+/** Auswahl-Werkzeug: Linksklick = Pos1, Rechtsklick = Pos2. */
 public class Wand implements Listener {
 
-    public static final String NAME = "§6§lSpawn-Wand §7(Links: Pos1 | Rechts: Pos2)";
+    public static final String ID = "wand";
 
     private final OdvPlugin plugin;
-    private final Map<UUID, Location> pos1 = new HashMap<UUID, Location>();
-    private final Map<UUID, Location> pos2 = new HashMap<UUID, Location>();
+    private final Map<UUID, Location> pos1 = new HashMap<>(), pos2 = new HashMap<>();
 
     public Wand(OdvPlugin plugin) {
         this.plugin = plugin;
     }
 
-    public static ItemStack item() {
-        return new ItemBuilder(Material.GOLD_AXE).name(NAME).lore(
-                "§7Markiere deine Spawn-Plattform.",
-                "§7Stell dich dann dorthin, wo der",
-                "§7Spieler spawnen soll, und nutze:",
-                "§e/odv schem save <Name>").glow(true).build();
+    public ItemStack item() {
+        return plugin.items().of(Material.GOLDEN_AXE).name("§6§lSpawn-Wand §7(Links: Pos1 | Rechts: Pos2)").lore(
+                "§7Markiere deine Plattform/Lobby.",
+                "§7Stell dich auf den Spawnpunkt und:",
+                "§e/odv schem save <Name>").glow(true).tag(ID).build();
     }
 
     public Location getPos1(Player p) {
@@ -50,20 +47,15 @@ public class Wand implements Listener {
 
     @EventHandler(priority = EventPriority.LOW)
     public void onInteract(PlayerInteractEvent e) {
-        ItemStack it = e.getItem();
-        if (it == null || it.getType() != Material.GOLD_AXE || !it.hasItemMeta()
-                || !NAME.equals(it.getItemMeta().getDisplayName())) return;
+        if (e.getHand() != EquipmentSlot.HAND || !ID.equals(plugin.items().id(e.getItem()))) return;
         if (!e.getPlayer().hasPermission("odv.admin") || e.getClickedBlock() == null) return;
         Location l = e.getClickedBlock().getLocation();
-        if (e.getAction() == Action.LEFT_CLICK_BLOCK) {
-            pos1.put(e.getPlayer().getUniqueId(), l);
-            e.getPlayer().sendMessage(plugin.settings().prefix + "§dPos1 §7gesetzt: §f" + fmt(l) + size(e.getPlayer()));
-            e.setCancelled(true);
-        } else if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            pos2.put(e.getPlayer().getUniqueId(), l);
-            e.getPlayer().sendMessage(plugin.settings().prefix + "§dPos2 §7gesetzt: §f" + fmt(l) + size(e.getPlayer()));
-            e.setCancelled(true);
-        }
+        boolean first = e.getAction() == Action.LEFT_CLICK_BLOCK;
+        if (!first && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        (first ? pos1 : pos2).put(e.getPlayer().getUniqueId(), l);
+        e.setCancelled(true);
+        Txt.send(e.getPlayer(), plugin.settings().prefix + "§d" + (first ? "Pos1" : "Pos2") + " §7gesetzt: §f"
+                + l.getBlockX() + ", " + l.getBlockY() + ", " + l.getBlockZ() + size(e.getPlayer()));
     }
 
     @EventHandler
@@ -75,13 +67,7 @@ public class Wand implements Listener {
     private String size(Player p) {
         Location a = getPos1(p), b = getPos2(p);
         if (a == null || b == null || a.getWorld() != b.getWorld()) return "";
-        int x = Math.abs(a.getBlockX() - b.getBlockX()) + 1;
-        int y = Math.abs(a.getBlockY() - b.getBlockY()) + 1;
-        int z = Math.abs(a.getBlockZ() - b.getBlockZ()) + 1;
-        return " §8(" + x + "x" + y + "x" + z + " = " + (x * y * z) + " Blöcke)";
-    }
-
-    private static String fmt(Location l) {
-        return l.getBlockX() + ", " + l.getBlockY() + ", " + l.getBlockZ();
+        int x = Math.abs(a.getBlockX() - b.getBlockX()) + 1, y = Math.abs(a.getBlockY() - b.getBlockY()) + 1, z = Math.abs(a.getBlockZ() - b.getBlockZ()) + 1;
+        return " §8(" + x + "×" + y + "×" + z + ")";
     }
 }

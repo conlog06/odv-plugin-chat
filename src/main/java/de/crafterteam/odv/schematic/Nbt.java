@@ -116,6 +116,12 @@ public final class Nbt {
                 break;
             }
             case COMPOUND: writeCompound(out, (Map<String, Object>) v); break;
+            case INT_ARRAY: {
+                int[] a = (int[]) v;
+                out.writeInt(a.length);
+                for (int x : a) out.writeInt(x);
+                break;
+            }
             default: throw new IOException("Typ nicht unterstützt: " + type);
         }
     }
@@ -126,6 +132,7 @@ public final class Nbt {
         if (v instanceof Integer) return INT;
         if (v instanceof String) return STRING;
         if (v instanceof byte[]) return BYTE_ARRAY;
+        if (v instanceof int[]) return INT_ARRAY;
         if (v instanceof List) return LIST;
         if (v instanceof Map) return COMPOUND;
         throw new IllegalArgumentException("NBT-Typ nicht unterstützt: " + v);
