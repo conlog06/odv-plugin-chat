@@ -60,6 +60,7 @@ public class GameManager {
     private int countdown, phase, elapsed, shrinkTotal;
     private boolean forced, shrinking, testRound, showdownDone;
     private UUID host;
+    private boolean displayErrorLogged;
     private int aliveAtShrink;
 
     private final Set<UUID> alive = new HashSet<>();
@@ -116,8 +117,8 @@ public class GameManager {
             try {
                 tick();
             } catch (RuntimeException e) {
-                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Fehler im Spieltakt – Runde wird zurückgesetzt.", e);
-                resetToLobby();
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Fehler im Spieltakt", e);
+                if (state.isIngame()) resetToLobby(); // nur eine laufende Runde abbrechen, nicht die Lobby
             }
         }, 20L, 20L);
     }
@@ -174,7 +175,12 @@ public class GameManager {
             }
         }
         plugin.features().tick();
-        updateDisplays();
+        try {
+            updateDisplays();
+        } catch (RuntimeException e) {
+            if (!displayErrorLogged) plugin.getLogger().log(java.util.logging.Level.WARNING, "Anzeige-Fehler (Scoreboard/Tab)", e);
+            displayErrorLogged = true; // Anzeigefehler brechen nie das Spiel ab
+        }
     }
 
     private void tickRunning() {

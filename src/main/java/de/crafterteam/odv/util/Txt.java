@@ -57,6 +57,13 @@ public final class Txt {
                 Title.Times.times(Duration.ofMillis(150), Duration.ofMillis(1600), Duration.ofMillis(400))));
     }
 
+    /** Für die Konsole (Windows zeigt Umlaute/Sonderzeichen oft falsch an). */
+    public static String ascii(String s) {
+        return s.replaceAll("§.", "").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("Ä", "Ae")
+                .replace("Ö", "Oe").replace("Ü", "Ue").replace("ß", "ss").replace("–", "-").replace("→", "->")
+                .replace("✔", "OK").replace("×", "x").replaceAll("[^\\x00-\\x7F]", "");
+    }
+
     public static String time(int seconds) {
         seconds = Math.max(0, seconds);
         if (seconds >= 3600) return seconds / 3600 + "h " + (seconds % 3600) / 60 + "m";

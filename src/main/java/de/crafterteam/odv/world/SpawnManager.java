@@ -388,6 +388,6 @@ public class SpawnManager {
 
     private void msg(CommandSender to, String m) {
         if (to != null) Txt.send(to, s().prefix + m);
-        else plugin.getLogger().info(m.replaceAll("§.", ""));
+        else plugin.getLogger().info(Txt.ascii(m));
     }
 }

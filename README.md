@@ -1,7 +1,7 @@
 # ODVMeetup 3.0 – ODV & Meetup für Paper 26.3
 
 ## ⬇️ Download
-**[ODVMeetup-3.0.0.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.0.0.jar)**
+**[ODVMeetup-3.0.1.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.0.1.jar)**
 · alle Versionen unter [Releases](https://github.com/conlog06/odv-plugin-chat/releases)
 
 Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite-Treiber bringt Paper mit).
@@ -67,4 +67,4 @@ Dazu: **Practice-Arena** in der Lobby (`/practice`), Bossbar mit Timern, Scorebo
 | `/odv xray [Name]` · `/odv antixray paper` · `/odv supply` · `/odv pregen\|backup\|reload` | Werkzeuge |
 
 ## Selbst bauen
-`mvn package` (JDK 21+) → `target/ODVMeetup-3.0.0.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.
+`mvn package` (JDK 21+) → `target/ODVMeetup-3.0.1.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.

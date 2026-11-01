@@ -83,7 +83,7 @@ public class Stats {
             plugin.getLogger().info("Statistik: " + (mysql ? "MySQL " + s.dbHost + "/" + s.dbName : "lokal (stats.db)"));
         } catch (SQLException e) {
             if (mysql) {
-                plugin.getLogger().severe("MySQL nicht erreichbar (" + e.getMessage() + ") – nutze lokale Datei.");
+                plugin.getLogger().severe("MySQL nicht erreichbar (" + e.getMessage() + ") - nutze lokale Datei.");
                 mysql = false;
                 table = "odv_players";
                 try {
@@ -317,7 +317,7 @@ public class Stats {
             }
         }
         f.renameTo(new File(plugin.getDataFolder(), "stats.yml.importiert"));
-        plugin.getLogger().info(n + " Spieler aus stats.yml übernommen.");
+        plugin.getLogger().info(n + " Spieler aus stats.yml uebernommen.");
     }
 
     // ================================================================= Backups
@@ -366,7 +366,7 @@ public class Stats {
             if (plugin.isEnabled()) Bukkit.getScheduler().runTask(plugin, () -> {
                 backupBusy = false;
                 if (sender != null) Txt.send(sender, plugin.settings().prefix + m);
-                else plugin.getLogger().info(m.replaceAll("§.", ""));
+                else plugin.getLogger().info(Txt.ascii(m));
             });
         });
     }

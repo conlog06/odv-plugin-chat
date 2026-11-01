@@ -80,7 +80,7 @@ public class OdvPlugin extends JavaPlugin {
         game.refreshHolograms();
         for (Player p : Bukkit.getOnlinePlayers()) game.onJoin(p);
         game.startTicker();
-        getLogger().info(arena.isReady() ? "Bereit – Arena: " + arena.getWorld().getName() : "Noch keine Arena – ingame /odv → Schnellsetup.");
+        getLogger().info(arena.isReady() ? "Bereit - Arena: " + arena.getWorld().getName() : "Noch keine Arena - ingame /odv -> Schnellsetup.");
     }
 
     @Override

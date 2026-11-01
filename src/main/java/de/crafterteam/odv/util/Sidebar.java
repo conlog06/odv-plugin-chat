@@ -25,6 +25,7 @@ public class Sidebar {
     private final Objective objective;
     private int shown;
     private String title = "";
+    private final java.util.Map<String, String> lastPrefix = new java.util.HashMap<>();
 
     public Sidebar(Player player, String title) {
         board = Bukkit.getScoreboardManager().getNewScoreboard();
@@ -67,12 +68,18 @@ public class Sidebar {
             Team t = board.getTeam(name);
             if (t == null) t = board.registerNewTeam(name);
             NamedTextColor c = colors.get(e.getKey());
-            if (c != null && !c.equals(t.color())) t.color(c);
+            if (c != null && (!t.hasColor() || !c.equals(t.color()))) t.color(c);
             String pre = prefixes.getOrDefault(e.getKey(), "");
-            t.prefix(Txt.c(pre));
+            if (!pre.equals(lastPrefix.get(name))) {
+                t.prefix(Txt.c(pre));
+                lastPrefix.put(name, pre);
+            }
             for (String entry : new HashSet<>(t.getEntries())) if (!e.getValue().contains(entry)) t.removeEntry(entry);
             for (String p : e.getValue()) if (!t.hasEntry(p)) t.addEntry(p);
         }
-        for (Team t : new HashSet<>(board.getTeams())) if (t.getName().startsWith("nt") && !wanted.contains(t.getName())) t.unregister();
+        for (Team t : new HashSet<>(board.getTeams())) if (t.getName().startsWith("nt") && !wanted.contains(t.getName())) {
+            lastPrefix.remove(t.getName());
+            t.unregister();
+        }
     }
 }
