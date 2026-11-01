@@ -1,0 +1,54 @@
+# ==========================================
+#  CrafterMeetup – ODV / Meetup für 1.8.8
+#  Fast alles lässt sich ingame mit /meetup setup einstellen.
+# ==========================================
+
+prefix: "&b&lMeetup &8» &7"
+server-ip: "dein-server.net"
+scoreboard-title: "&b&lMeetup"
+
+# Lobby (wird mit /meetup setlobby oder im Setup-GUI gesetzt)
+lobby: null
+
+game:
+  world: "world"              # Spielwelt
+  center-x: 0                 # Mittelpunkt (Border + Spawnkreis)
+  center-z: 0
+  min-players: 2
+  lobby-countdown: 60         # Sekunden
+  freeze-time: 10             # Sekunden eingefroren nach dem Teleport
+  pvp-protection: 30          # Sekunden ohne PvP nach dem Freeze
+  natural-regeneration: true
+  golden-apple-on-death: true # Toter Spieler droppt zusätzlich einen Goldapfel
+  lightning-on-death: true
+  end-delay: 15               # Sekunden nach dem Sieg
+  restart-on-end: false       # true = Server nach Rundenende stoppen (Restart-Script nötig)
+  late-join-spectator: true
+
+teams:
+  size: 1                     # 1 = Solo
+  count: 16                   # max. Teams bei Teamgröße > 1 (max 16)
+  friendly-fire: false
+
+border:
+  start-size: 600             # Durchmesser in Blöcken
+  end-size: 50
+  shrink-start: 5             # Minuten nach Spielstart
+  shrink-duration: 10         # Minuten bis Endgröße
+  damage: 1.0
+  buffer: 2.0
+
+spawns:
+  schematic: ""               # Dateiname in plugins/CrafterMeetup/schematics (ohne .schematic)
+  count: 0                    # 0 = automatisch (Anzahl Teams beim Start)
+  radius: 0                   # 0 = automatisch (abhängig von Border + Anzahl)
+  y-offset: 0                 # Höhe relativ zum Boden
+  paste-air: true             # Luft der Schematic mit einfügen (räumt Bäume/Gras weg)
+  generate-on-start: true     # Spawns beim Start automatisch neu generieren
+  blocks-per-tick: 3000       # Paste-Geschwindigkeit
+  # Gespeicherte Spawns (werden vom Plugin verwaltet)
+  locations: []
+
+# Kit (wird über das Setup-GUI aus deinem Inventar gespeichert)
+kit:
+  saved: false
