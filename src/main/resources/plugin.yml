@@ -1,19 +1,19 @@
-name: CrafterMeetup
+name: ODVMeetup
 version: ${project.version}
-main: de.crafterteam.meetup.MeetupPlugin
+main: de.crafterteam.odv.OdvPlugin
 author: Constantin
-description: ODV/Meetup-Plugin mit Setup-GUI und automatischen Schematic-Spawns
+description: ODV & Meetup für 1.8.8/1.8.9 – Setup-Menü, Schematic-Spawns, Teams, Statistik
 commands:
-  meetup:
-    description: Meetup/ODV Hauptbefehl
-    aliases: [odv, mu]
-  teams:
-    description: Teamauswahl öffnen
-    aliases: [team]
+  odv:
+    description: ODV / Meetup Hauptbefehl
+    aliases: [meetup, mu]
+  team:
+    description: Teamauswahl
+    aliases: [teams]
 permissions:
-  meetup.admin:
-    description: Setup, Start/Stop, Spawns, Schematics
+  odv.admin:
+    description: Setup, Start/Stop, Spawns, Kits, Backups
     default: op
-  meetup.forcestart:
-    description: Countdown verkürzen
-    default: op
+  odv.play:
+    description: An Runden teilnehmen
+    default: true

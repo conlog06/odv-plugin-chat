@@ -5,10 +5,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>de.crafterteam</groupId>
-    <artifactId>CrafterMeetup</artifactId>
-    <version>1.0.0</version>
+    <artifactId>ODVMeetup</artifactId>
+    <version>2.0.0</version>
     <packaging>jar</packaging>
-    <name>CrafterMeetup</name>
+    <name>ODVMeetup</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -37,11 +37,21 @@
     </dependencies>
 
     <build>
-        <finalName>CrafterMeetup-${project.version}</finalName>
+        <finalName>ODVMeetup-${project.version}</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
+                <includes>
+                    <include>*.yml</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>*.yml</exclude>
+                </excludes>
             </resource>
         </resources>
         <plugins>

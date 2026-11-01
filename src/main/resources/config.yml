@@ -1,54 +1,50 @@
-# ==========================================
-#  CrafterMeetup – ODV / Meetup für 1.8.8
-#  Fast alles lässt sich ingame mit /meetup setup einstellen.
-# ==========================================
+# ==============================================================
+#  ODVMeetup 2.0 – ODV & Meetup für Spigot/Paper 1.8.8 (Clients 1.8.9)
+#  Am einfachsten alles ingame einstellen:  /odv
+#  Zeiten in SEKUNDEN, Border-Werte sind DURCHMESSER.
+# ==============================================================
 
-prefix: "&b&lMeetup &8» &7"
+mode: MEETUP                  # MEETUP oder ODV (Presets im Menü)
+prefix: "&b&lODV &8» &7"
 server-ip: "dein-server.net"
-scoreboard-title: "&b&lMeetup"
-
-# Lobby (wird mit /meetup setlobby oder im Setup-GUI gesetzt)
-lobby: null
-
-game:
-  world: "world"              # Spielwelt
-  center-x: 0                 # Mittelpunkt (Border + Spawnkreis)
-  center-z: 0
-  min-players: 2
-  lobby-countdown: 60         # Sekunden
-  freeze-time: 10             # Sekunden eingefroren nach dem Teleport
-  pvp-protection: 30          # Sekunden ohne PvP nach dem Freeze
-  natural-regeneration: true
-  golden-apple-on-death: true # Toter Spieler droppt zusätzlich einen Goldapfel
-  lightning-on-death: true
-  end-delay: 15               # Sekunden nach dem Sieg
-  restart-on-end: false       # true = Server nach Rundenende stoppen (Restart-Script nötig)
-  late-join-spectator: true
 
 teams:
   size: 1                     # 1 = Solo
-  count: 16                   # max. Teams bei Teamgröße > 1 (max 16)
+  count: 16                   # 2 bis 36
   friendly-fire: false
 
+match:
+  min-players: 2
+  auto-start: true            # Countdown startet automatisch ab min-players
+  countdown: 30
+  freeze: 10                  # eingefroren auf dem Spawn
+  grace: 30                   # Schutzzeit ohne PvP (nach dem Freeze)
+  end-delay: 15
+  disconnect-grace: 60        # so lange darf man nach einem Disconnect zurückkommen
+  natural-regeneration: true
+  golden-apple-on-death: true
+  lightning-on-death: true
+  stop-server-on-end: false   # true = Server stoppt nach der Runde (frische Map per Restart-Script)
+
 border:
-  start-size: 600             # Durchmesser in Blöcken
-  end-size: 50
-  shrink-start: 5             # Minuten nach Spielstart
-  shrink-duration: 10         # Minuten bis Endgröße
+  initial: 600
+  final: 40
+  shrink-after: 300           # ab Rundenbeginn
+  shrink-duration: 600
   damage: 1.0
-  buffer: 2.0
 
-spawns:
-  schematic: ""               # Dateiname in plugins/CrafterMeetup/schematics (ohne .schematic)
-  count: 0                    # 0 = automatisch (Anzahl Teams beim Start)
-  radius: 0                   # 0 = automatisch (abhängig von Border + Anzahl)
-  y-offset: 0                 # Höhe relativ zum Boden
-  paste-air: true             # Luft der Schematic mit einfügen (räumt Bäume/Gras weg)
-  generate-on-start: true     # Spawns beim Start automatisch neu generieren
-  blocks-per-tick: 3000       # Paste-Geschwindigkeit
-  # Gespeicherte Spawns (werden vom Plugin verwaltet)
-  locations: []
+spawn:
+  mode: PLATFORM              # PLATFORM = Schematic-Plattformen im Kreis | SCATTER = zufällig & sicher
+  team-schematic: plattform   # Datei in schematics/ (ohne .schematic)
+  lobby-schematic: lobby
+  radius: 0                   # Plattform-Kreis, 0 = automatisch
+  y-offset: 0
+  paste-air: true
+  regenerate-on-start: true
+  protection-radius: 15       # Lobby-Bau in der Mitte ist geschützt
+  min-team-distance: 40       # nur SCATTER
+  blocks-per-tick: 2000
 
-# Kit (wird über das Setup-GUI aus deinem Inventar gespeichert)
-kit:
-  saved: false
+backup:
+  on-start: true
+  keep: 10
