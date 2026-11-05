@@ -46,6 +46,8 @@ public class OdvPlugin extends JavaPlugin {
     private de.crafterteam.odv.game.VoteManager votes;
     private AdminCommands admin;
     private de.crafterteam.odv.feature.EventManager events;
+    private de.crafterteam.odv.feature.Heatmap heatmap;
+    private de.crafterteam.odv.game.Punishments punish;
 
     @Override
     public void onEnable() {
@@ -59,10 +61,13 @@ public class OdvPlugin extends JavaPlugin {
         ranks = new de.crafterteam.odv.data.RankManager(this);
         ranks.load();
         ranks.openTable();
+        punish = new de.crafterteam.odv.game.Punishments(this);
+        punish.open();
         discord = new de.crafterteam.odv.util.Discord(this);
         votes = new de.crafterteam.odv.game.VoteManager(this);
         admin = new AdminCommands(this);
         events = new de.crafterteam.odv.feature.EventManager(this);
+        heatmap = new de.crafterteam.odv.feature.Heatmap(this);
         combat = new CombatManager(this);
         spawns = new SpawnManager(this);
         arena = new Arena(this);
@@ -92,13 +97,27 @@ public class OdvPlugin extends JavaPlugin {
                 pc.setTabCompleter(admin);
             }
         }
-        for (Listener l : new Listener[]{admin, new GameListener(this), combat, scenarios, features, antiXray, wand}) {
+        for (String c : de.crafterteam.odv.game.Punishments.COMMANDS) {
+            var pc = getCommand(c);
+            if (pc != null) {
+                pc.setExecutor(punish);
+                pc.setTabCompleter(punish);
+            }
+        }
+        for (Listener l : new Listener[]{punish, admin, new GameListener(this), combat, scenarios, features, antiXray, wand}) {
             Bukkit.getPluginManager().registerEvents(l, this);
         }
         game.applyWorldSettings();
         game.refreshHolograms();
         for (Player p : Bukkit.getOnlinePlayers()) game.onJoin(p);
         game.startTicker();
+        if (settings.worldReset != Settings.WorldReset.OFF) {
+            spawns.cleanupOldWorlds();
+            if (arena.isDirty()) {
+                getLogger().info("Letzte Runde wurde gespielt - Arena wird neu erstellt.");
+                Bukkit.getScheduler().runTaskLater(this, () -> spawns.resetArena(null), 40L);
+            }
+        }
         getLogger().info(arena.isReady() ? "Bereit - Arena: " + arena.getWorld().getName() : "Noch keine Arena - ingame /odv -> Schnellsetup.");
     }
 
@@ -156,4 +175,6 @@ public class OdvPlugin extends JavaPlugin {
     public de.crafterteam.odv.game.VoteManager votes() { return votes; }
     public AdminCommands admin() { return admin; }
     public de.crafterteam.odv.feature.EventManager events() { return events; }
+    public de.crafterteam.odv.feature.Heatmap heatmap() { return heatmap; }
+    public de.crafterteam.odv.game.Punishments punish() { return punish; }
 }

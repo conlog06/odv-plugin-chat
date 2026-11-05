@@ -87,6 +87,12 @@ public class Settings {
     public int supplyInterval;
 
     public int spectatorRadius, chatSlowmode;
+    public enum WorldReset {LIVE, RESTART, OFF}
+    public WorldReset worldReset;
+    public boolean combatLog, strikeCombatLog, strikeLeave;
+    public int combatSeconds, strikeExpireDays;
+    public final java.util.TreeMap<Integer, String> autoBan = new java.util.TreeMap<>();
+    public String banAppeal;
     public String discordWebhook;
     public boolean discordResults;
 
@@ -139,6 +145,21 @@ public class Settings {
         goldRate = Math.max(0, Math.min(10, c.getDouble("world.gold-rate", 1.5)));
         plainsOnly = c.getBoolean("world.plains-only", true);
         naturalOnly = c.getBoolean("world.natural-only", true);
+        worldReset = parse(WorldReset.class, c.getString("world.reset-after-round"), WorldReset.LIVE);
+        combatLog = c.getBoolean("combat-log.enabled", true);
+        combatSeconds = clamp(c.getInt("combat-log.seconds", 15), 3, 120);
+        strikeCombatLog = c.getBoolean("punishments.strike-combat-log", true);
+        strikeLeave = c.getBoolean("punishments.strike-leave", true);
+        strikeExpireDays = clamp(c.getInt("punishments.strike-expire-days", 30), 0, 3650);
+        banAppeal = c.getString("punishments.appeal", "");
+        autoBan.clear();
+        var ab = c.getConfigurationSection("punishments.auto-ban");
+        if (ab != null) for (String k : ab.getKeys(false)) {
+            try {
+                autoBan.put(Integer.parseInt(k.trim()), ab.getString(k, "1d"));
+            } catch (NumberFormatException ignored) {
+            }
+        }
 
         spawnStyle = parse(SpawnStyle.class, c.getString("spawn.style"), SpawnStyle.HOLES);
         slab = c.getString("spawn.slab", "minecraft:smooth_stone_slab[type=top]");

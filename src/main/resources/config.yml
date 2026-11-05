@@ -37,6 +37,23 @@ combat:
   old-golden-apples: true     # Notch-Apfel wie in 1.8
   old-damage: true            # Schwert-/Axt-Schaden wie in 1.8
 
+combat-log:
+  enabled: true
+  seconds: 15                 # so lange gilt man nach einem Treffer als "im Kampf"
+  # Wer sich im Kampf ausloggt, scheidet sofort aus – der Gegner bekommt den Kill.
+
+punishments:
+  strike-combat-log: true     # Strike für Ausloggen im Kampf
+  strike-leave: true          # Strike für Verlassen der Runde (nicht rechtzeitig zurück)
+  strike-expire-days: 30      # Strikes verfallen nach X Tagen (0 = nie)
+  # Automatische Bans ab X aktiven Strikes: 30m, 12h, 7d, 2w, perm
+  auto-ban:
+    3: 1h
+    4: 1d
+    5: 7d
+    6: perm
+  appeal: "Entbannungsantrag im Discord"
+
 border:
   initial: 600
   final: 40
@@ -49,6 +66,9 @@ world:
   gold-rate: 1.5
   plains-only: true           # Spieler-Spawns nur in Plains-Biomen
   natural-only: true          # nur flacher, natürlicher Boden (kein Wasser, keine Bäume)
+  # Arena-Welt nach jeder Runde komplett neu erstellen (frisches Terrain, keine alten Spawns):
+  # LIVE = direkt nach der Runde | RESTART = erst beim nächsten Serverstart | OFF = nie
+  reset-after-round: LIVE
 
 spawn:
   style: HOLES                # HOLES = Varo-Löcher | PLATFORM = Schematic | SCATTER = zufällig

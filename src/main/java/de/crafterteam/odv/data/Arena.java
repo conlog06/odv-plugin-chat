@@ -25,6 +25,7 @@ public class Arena {
     private String worldName;
     private Location center, lobby, practice;
     private final List<Location> spawns = new ArrayList<>();
+    private boolean dirty; // Runde wurde in dieser Welt gespielt -> neu erstellen
 
     public Arena(OdvPlugin plugin) {
         this.plugin = plugin;
@@ -36,6 +37,7 @@ public class Arena {
         spawns.clear();
         YamlConfiguration y = YamlConfiguration.loadConfiguration(file);
         worldName = y.getString("world");
+        dirty = y.getBoolean("dirty", false);
         World w = worldName == null ? null : loadArenaWorld(plugin, worldName);
         if (w != null) {
             center = read(y, "center", w);
@@ -60,6 +62,7 @@ public class Arena {
     public void save() {
         YamlConfiguration y = new YamlConfiguration();
         y.set("world", center != null ? center.getWorld().getName() : worldName);
+        y.set("dirty", dirty);
         write(y, "center", center);
         write(y, "lobby", lobby);
         write(y, "practice", practice);
@@ -87,6 +90,27 @@ public class Arena {
             w = Bukkit.createWorld(new WorldCreator(name).generator(new ArenaGenerator(plugin)));
         }
         return w;
+    }
+
+    public boolean isDirty() {
+        return dirty;
+    }
+
+    public void setDirty(boolean d) {
+        if (dirty == d) return;
+        dirty = d;
+        save();
+    }
+
+    /** Alles vergessen, was in dieser Welt liegt (vor dem Löschen der Welt). */
+    public void forgetWorld(World w) {
+        if (center != null && w.equals(center.getWorld())) center = null;
+        if (lobby != null && w.equals(lobby.getWorld())) lobby = null;
+        if (practice != null && w.equals(practice.getWorld())) practice = null;
+        if (w.getName().equals(worldName)) worldName = null;
+        spawns.clear();
+        dirty = false;
+        save();
     }
 
     public boolean isReady() {

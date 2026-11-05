@@ -41,6 +41,22 @@ commands:
     description: Spieler muten
   unmute:
     description: Mute aufheben
+  ban:
+    description: Spieler permanent bannen
+  tempban:
+    description: Spieler zeitweise bannen (30m, 12h, 7d, 2w)
+  unban:
+    description: Ban aufheben
+  kick:
+    description: Spieler kicken
+  banlist:
+    description: Aktive Bans
+  strike:
+    description: Strike vergeben
+  strikes:
+    description: Strikes ansehen
+  unstrike:
+    description: Strike entfernen
   invsee:
     description: Inventar eines Spielers ansehen/bearbeiten
   ecsee:
@@ -77,6 +93,8 @@ permissions:
   odv.admin:
     description: Setup, Start/Stop, Spawns, Kits, Backups, Xray-Meldungen
     default: op
+    children:
+      odv.ban: true
   odv.play:
     description: An Runden teilnehmen
     default: true
@@ -87,7 +105,23 @@ permissions:
     description: Staff-Chat, Zuschauer überall, Xray-Meldungen
     default: op
   odv.mute:
-    description: Spieler muten
+    description: Spieler muten (inkl. Kick, Strike, Tempban)
+    default: op
+    children:
+      odv.kick: true
+      odv.strike: true
+      odv.tempban: true
+  odv.kick:
+    description: /kick
+    default: op
+  odv.strike:
+    description: /strike /unstrike /strikes <Spieler>
+    default: op
+  odv.tempban:
+    description: /tempban /unban /banlist
+    default: op
+  odv.ban:
+    description: /ban (permanent)
     default: op
   odv.bypass:
     description: Kein Chat-Slowmode/Spam-Schutz

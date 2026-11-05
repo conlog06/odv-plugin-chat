@@ -94,7 +94,7 @@ public class FeatureManager implements Listener {
     // Bounty
     private UUID bounty;
     // Heatmap
-    private final List<int[]> heat = new ArrayList<>();
+
     // Voting
     private List<VoteEvent> voteOptions = null;
     private final Map<UUID, Integer> votes = new HashMap<>();
@@ -121,6 +121,9 @@ public class FeatureManager implements Listener {
     public void onRoundStart() {
         reset();
         supplyTimer = s().supplyInterval;
+        if (on(Feature.HEATMAP) && plugin.arena().getCenter() != null) {
+            plugin.heatmap().start(plugin.arena().getWorld(), plugin.arena().getCenter(), s().borderInitial);
+        }
         voteTimer = 300;
         if (on(Feature.TEAM_PING) && !s().isSolo()) plugin.game().broadcast("§7Tipp: §eSchleichen + F §7oder §e/ping §7markiert einen Ort für dein Team.");
     }
@@ -130,7 +133,7 @@ public class FeatureManager implements Listener {
         revived.clear();
         reviveDeadline.clear();
         pingCooldown.clear();
-        heat.clear();
+        plugin.heatmap().reset();
         votes.clear();
         voteOptions = null;
         bets.clear();
@@ -162,8 +165,8 @@ public class FeatureManager implements Listener {
         if (!(e.getEntity() instanceof Player p) || !plugin.game().isPlaying(p)) return;
         String src = cause(e);
         hits.computeIfAbsent(p.getUniqueId(), k -> new ArrayList<>()).add(new Hit(System.currentTimeMillis(), src, e.getFinalDamage()));
-        if (e instanceof EntityDamageByEntityEvent ev && attacker(ev.getDamager()) != null && heat.size() < 50000) {
-            heat.add(new int[]{p.getLocation().getBlockX(), p.getLocation().getBlockZ()});
+        if (on(Feature.HEATMAP) && e instanceof EntityDamageByEntityEvent ev && attacker(ev.getDamager()) != null) {
+            plugin.heatmap().hit(p.getLocation(), e.getFinalDamage());
         }
     }
 
@@ -222,7 +225,7 @@ public class FeatureManager implements Listener {
         Player vp = Bukkit.getPlayer(victim);
         if (on(Feature.DEATH_RECAP) && vp != null) sendRecap(vp);
         hits.remove(victim);
-        if (where != null) heat.add(new int[]{where.getBlockX(), where.getBlockZ(), 1});
+        if (on(Feature.HEATMAP)) plugin.heatmap().kill(where);
 
         if (on(Feature.BOUNTY) && victim.equals(bounty)) {
             bounty = null;
@@ -265,7 +268,7 @@ public class FeatureManager implements Listener {
                 } else if (p != null) Txt.send(p, s().prefix + "§7Deine Wette lag daneben.");
             }
         }
-        if (on(Feature.HEATMAP) && !heat.isEmpty()) giveHeatmap();
+        if (on(Feature.HEATMAP)) plugin.heatmap().give(s().endDelay * 20L + 10L);
     }
 
     // ===================================================================== Team-Revive
@@ -537,61 +540,4 @@ public class FeatureManager implements Listener {
     }
 
     // ===================================================================== Heatmap
-
-    private void giveHeatmap() {
-        World w = plugin.arena().getWorld();
-        Location c = plugin.arena().getCenter();
-        if (w == null || c == null) return;
-        int size = s().borderInitial;
-        int[][] grid = new int[128][128];
-        int max = 1;
-        for (int[] h : heat) {
-            int px = (int) ((h[0] - (c.getX() - size / 2.0)) * 128 / size), pz = (int) ((h[1] - (c.getZ() - size / 2.0)) * 128 / size);
-            for (int dx = -1; dx <= 1; dx++)
-                for (int dz = -1; dz <= 1; dz++) {
-                    int x = px + dx, z = pz + dz;
-                    if (x < 0 || z < 0 || x > 127 || z > 127) continue;
-                    grid[x][z] += (dx == 0 && dz == 0) ? (h.length > 2 ? 6 : 3) : 1;
-                    max = Math.max(max, grid[x][z]);
-                }
-        }
-        final int maxV = max;
-        MapView view = Bukkit.createMap(w);
-        view.getRenderers().clear();
-        view.setCenterX(c.getBlockX());
-        view.setCenterZ(c.getBlockZ());
-        view.addRenderer(new MapRenderer() {
-            boolean done;
-
-            @Override
-            public void render(MapView map, MapCanvas canvas, Player player) {
-                if (done) return;
-                done = true;
-                for (int x = 0; x < 128; x++)
-                    for (int z = 0; z < 128; z++) {
-                        int v = grid[x][z];
-                        java.awt.Color col;
-                        if (v == 0) col = (x == 0 || z == 0 || x == 127 || z == 127) ? new java.awt.Color(60, 60, 60) : new java.awt.Color(214, 205, 180);
-                        else {
-                            float f = Math.min(1f, v / (float) maxV);
-                            col = new java.awt.Color(255, (int) (220 * (1 - f)), 0);
-                        }
-                        canvas.setPixelColor(x, z, col);
-                    }
-                canvas.setPixelColor(64, 64, java.awt.Color.BLUE);
-            }
-        });
-        ItemStack map = new ItemStack(Material.FILLED_MAP);
-        MapMeta meta = (MapMeta) map.getItemMeta();
-        meta.setMapView(view);
-        meta.displayName(Txt.item("§6§lKampf-Heatmap"));
-        meta.lore(Txt.items(List.of("§7Rot = hier wurde am meisten gekämpft", "§7Mitte = Spawn")));
-        map.setItemMeta(meta);
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                p.getInventory().setItem(6, map.clone());
-                Txt.send(p, s().prefix + "§6Die Kampf-Heatmap §7liegt in deinem Inventar.");
-            }
-        }, s().endDelay * 20L + 10L);
-    }
 }

@@ -1,6 +1,15 @@
 # Wird mit /changelog angezeigt und mit /odv changelog post an Discord geschickt.
 # Neueste Version oben. Eigene Einträge einfach ergänzen.
 versions:
+  - version: "3.3.0"
+    date: "05.11.2026"
+    changes:
+      - "Neue Welt nach jeder Runde: die Arena wird komplett neu erstellt – frisches Terrain, keine alten Spawns"
+      - "Spawn nur noch auf großen, flachen Plains-Ebenen – keine Hügel, Berge, Bäume oder Wasser"
+      - "Combat-Log: wer sich im Kampf ausloggt, scheidet sofort aus und der Gegner bekommt den Kill"
+      - "Strike-System: Strikes für Combat-Log und Verlassen der Runde, automatische Bans ab 3 Strikes"
+      - "Bansystem: /ban /tempban /unban /kick /banlist /strike /strikes /unstrike"
+      - "Kampf-Heatmap neu: echte Geländekarte, Farbverlauf, Kill-Markierungen, Hotspots + PNG-Export"
   - version: "3.2.0"
     date: "05.11.2026"
     changes:

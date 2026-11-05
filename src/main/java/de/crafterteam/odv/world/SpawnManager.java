@@ -91,7 +91,11 @@ public class SpawnManager {
 
     // ============================================================ Schnellsetup
 
-    public void quickSetup(Player actor) {
+    public void quickSetup(CommandSender actor) {
+        quickSetup(actor, null);
+    }
+
+    public void quickSetup(CommandSender actor, Runnable done) {
         if (busy) {
             msg(actor, "§cEs läuft bereits ein Setup.");
             return;
@@ -145,26 +149,148 @@ public class SpawnManager {
             msg(actor, "§a✔ Arena fertig! §7Spawn mit Netherportal bei §f" + center.getBlockX() + " / " + center.getBlockZ()
                     + "§7, Lobby schwebt darüber.");
             msg(actor, "§7Map wird jetzt vorgeneriert – danach §a/odv start§7.");
-            ChunkPregen.start(plugin, w, center.getBlockX(), center.getBlockZ(), s().borderInitial / 2 + 48, actor);
+            ChunkPregen.start(plugin, w, center.getBlockX(), center.getBlockZ(), s().borderInitial / 2 + 48, actor instanceof Player p ? p : null);
+            if (done != null) done.run();
         });
     }
 
+    // ============================================================ Welt-Reset
+
+    /** Nur Welten, die das Plugin selbst erstellt hat, werden gelöscht. */
+    public static boolean isOwnWorld(String name) {
+        return name != null && name.toLowerCase(java.util.Locale.ROOT).startsWith("odv_arena");
+    }
+
+    /**
+     * Arena-Welt löschen und komplett neu erstellen (neuer Seed, neue Plains-Fläche, keine alten Spawns).
+     * Spieler warten so lange in der Hauptwelt.
+     */
+    public void resetArena(CommandSender actor) {
+        World old = arena().getWorld();
+        if (busy || old == null) return;
+        if (!isOwnWorld(old.getName()) || old.equals(Bukkit.getWorlds().get(0))) {
+            msg(actor, "§eWelt §f" + old.getName() + " §ewurde nicht vom Plugin erstellt – wird nicht zurückgesetzt.");
+            arena().setDirty(false);
+            return;
+        }
+        busy = true;
+        ChunkPregen.stop();
+        plugin.practice().leaveAll();
+        plugin.events().clearPodium();
+        plugin.holograms().removeAll();
+        boolean lobbyInWorld = arena().getLobby() != null && old.equals(arena().getLobby().getWorld());
+        arena().forgetWorld(old);
+        Location hold = Bukkit.getWorlds().get(0).getSpawnLocation();
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            Txt.title(p, "§b§lNeue Welt", "§7wird für die nächste Runde erstellt …");
+            if (p.getWorld().equals(old)) {
+                plugin.game().resetPlayer(p, org.bukkit.GameMode.ADVENTURE);
+                p.getInventory().clear();
+                p.teleport(hold);
+            }
+        }
+        plugin.game().broadcast("§7Die Arena wird §bneu erstellt§7 – frisches Terrain, neue Spawns. Kurz warten …");
+        File dir = old.getWorldFolder();
+        String oldName = old.getName();
+        for (org.bukkit.entity.Entity e : old.getEntities()) if (!(e instanceof Player)) e.remove();
+        old.removePluginChunkTickets(plugin);
+        if (!Bukkit.unloadWorld(old, false)) {
+            busy = false;
+            msg(actor, "§cAlte Welt konnte nicht entladen werden – Reset beim nächsten Neustart.");
+            plugin.getLogger().warning("Welt " + oldName + " konnte nicht entladen werden.");
+            return;
+        }
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            boolean ok = deleteDir(dir);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!ok) plugin.getLogger().warning("Alte Welt " + oldName + " nicht ganz geloescht - wird beim Neustart entfernt.");
+                busy = false;
+                if (!lobbyInWorld) plugin.getLogger().info("Eigene Lobby ausserhalb der Arena bleibt erhalten.");
+                quickSetup(actor, () -> {
+                    plugin.events().rebuildPodium();
+                    plugin.game().broadcast("§a✔ Neue Arena ist bereit!");
+                });
+            });
+        });
+    }
+
+    /** Beim Start: übrig gebliebene alte Arena-Ordner entfernen (nicht die aktuelle Welt). */
+    public void cleanupOldWorlds() {
+        World current = arena().getWorld();
+        File[] dirs = Bukkit.getWorldContainer().listFiles(File::isDirectory);
+        if (dirs == null) return;
+        List<File> remove = new ArrayList<>();
+        for (File d : dirs) {
+            if (!isOwnWorld(d.getName())) continue;
+            if (current != null && d.getName().equals(current.getName())) continue;
+            if (Bukkit.getWorld(d.getName()) != null) continue;
+            if (!new File(d, "level.dat").isFile()) continue;
+            remove.add(d);
+        }
+        if (remove.isEmpty()) return;
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            for (File d : remove) if (deleteDir(d)) plugin.getLogger().info("Alte Arena-Welt entfernt: " + d.getName());
+        });
+    }
+
+    private static boolean deleteDir(File dir) {
+        if (dir == null || !dir.exists()) return true;
+        try (var walk = java.nio.file.Files.walk(dir.toPath())) {
+            List<java.nio.file.Path> paths = walk.sorted(java.util.Comparator.reverseOrder()).toList();
+            boolean ok = true;
+            for (java.nio.file.Path p : paths) {
+                try {
+                    java.nio.file.Files.deleteIfExists(p);
+                } catch (IOException e) {
+                    ok = false;
+                }
+            }
+            return ok;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Mittel-Spawn: großflächige, flache Plains-Ebene.
+     * 1. Plains über das Biom-Rauschen suchen (generiert keine Chunks)
+     * 2. Umgebung muss auch Plains sein (8 Richtungen, 80 Blöcke)
+     * 3. Im Umkreis den flachsten Punkt nehmen (keine Hügel, kein Wasser, keine Bäume)
+     */
     private Location findCenterSpot(World w) {
         Location base = w.getSpawnLocation();
-        Location fallback = null;
-        for (int i = 0; i < 80; i++) {
-            int r = i == 0 ? 0 : 96 + i * 32;
+        Location best = null;
+        double bestScore = Double.MAX_VALUE;
+        int candidates = 0;
+        for (int i = 0; i < 30 && candidates < 5; i++) {
             double a = random.nextDouble() * Math.PI * 2;
-            int x = base.getBlockX() + (int) (Math.cos(a) * r), z = base.getBlockZ() + (int) (Math.sin(a) * r);
-            Location g = goodSpot(w, x, z, true, true);
-            if (g == null) continue;
-            if (fallback == null) fallback = g;
-            // Umgebung soll auch Plains sein
+            int dist = i == 0 ? 0 : 400 + i * 300;
+            Location origin = base.clone().add(Math.cos(a) * dist, 0, Math.sin(a) * dist);
+            var res = w.locateNearestBiome(origin, 1200, 32, 64, Biome.PLAINS, Biome.SUNFLOWER_PLAINS);
+            if (res == null) continue;
+            int x = res.getLocation().getBlockX(), z = res.getLocation().getBlockZ();
             int ok = 0;
-            for (int[] d : new int[][]{{48, 0}, {-48, 0}, {0, 48}, {0, -48}}) if (isPlains(w, x + d[0], z + d[1])) ok++;
-            if (ok >= 3) return g;
+            for (int k = 0; k < 8; k++) {
+                double ang = Math.PI / 4 * k;
+                if (plainsNoise(w, x + (int) (Math.cos(ang) * 80), z + (int) (Math.sin(ang) * 80))) ok++;
+            }
+            if (ok < 7) continue;
+            candidates++;
+            for (int ox = -32; ox <= 32; ox += 32)
+                for (int oz = -32; oz <= 32; oz += 32) {
+                    double sc = flatness(w, x + ox, z + oz);
+                    if (sc < bestScore) {
+                        Location g = goodSpot(w, x + ox, z + oz, true, true);
+                        if (g != null) {
+                            bestScore = sc;
+                            best = g;
+                        }
+                    }
+                }
+            if (bestScore < 3) break; // schon sehr flach
         }
-        if (fallback != null) return fallback;
+        if (best != null) return best;
+        plugin.getLogger().warning("Keine flache Plains-Flaeche gefunden - nutze Weltspawn.");
         int y = ground(w, base.getBlockX(), base.getBlockZ());
         return new Location(w, base.getBlockX() + 0.5, y + 1, base.getBlockZ() + 0.5);
     }
@@ -269,8 +395,8 @@ public class SpawnManager {
     public List<Location> ring(World world, Location center, int count, int radius) {
         List<Location> list = new ArrayList<>();
         double start = random.nextDouble() * Math.PI * 2;
-        int[] radial = {0, 6, -6, 12, -12, 20, -20, 30};
-        double[] angular = {0, 0.04, -0.04, 0.08, -0.08};
+        int[] radial = {0, 6, -6, 12, -12, 20, -20, 30, -30, 42};
+        double[] angular = {0, 0.04, -0.04, 0.08, -0.08, 0.13, -0.13};
         for (int i = 0; i < count; i++) {
             double a0 = start + 2 * Math.PI * i / Math.max(1, count);
             Location found = null;
@@ -285,7 +411,20 @@ public class SpawnManager {
                     found = null;
                 }
             }
-            if (found == null) { // lockern: nur trocken
+            if (found == null) { // lockern: flach & natürlich, aber Biom egal
+                outer2:
+                for (int dr : radial) {
+                    for (double da : angular) {
+                        int r = Math.max(10, radius + dr);
+                        int x = center.getBlockX() + (int) Math.round(Math.cos(a0 + da) * r);
+                        int z = center.getBlockZ() + (int) Math.round(Math.sin(a0 + da) * r);
+                        found = goodSpot(world, x, z, false, s().naturalOnly);
+                        if (found != null && !tooClose(found, list, 8)) break outer2;
+                        found = null;
+                    }
+                }
+            }
+            if (found == null) { // letzte Rettung: nur trocken
                 int x = center.getBlockX() + (int) Math.round(Math.cos(a0) * radius);
                 int z = center.getBlockZ() + (int) Math.round(Math.sin(a0) * radius);
                 found = goodSpot(world, x, z, false, false);
@@ -342,32 +481,76 @@ public class SpawnManager {
         return w.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
     }
 
-    public static boolean isPlains(World w, int x, int z) {
-        Biome b = w.getBiome(x, ground(w, x, z), z);
-        return b.equals(Biome.PLAINS) || b.equals(Biome.SUNFLOWER_PLAINS) || b.equals(Biome.MEADOW);
+    private static boolean plainsBiome(Biome b) {
+        return b.equals(Biome.PLAINS) || b.equals(Biome.SUNFLOWER_PLAINS); // Meadow liegt in den Bergen -> nicht erlaubt
     }
 
-    /** Stehplatz (y über dem Boden) oder null. */
+    public static boolean isPlains(World w, int x, int z) {
+        return plainsBiome(w.getBiome(x, ground(w, x, z), z));
+    }
+
+    /** Plains laut Biom-Rauschen – ohne Chunks zu generieren (schnell). */
+    public static boolean plainsNoise(World w, int x, int z) {
+        return w.locateNearestBiome(new Location(w, x, w.getSeaLevel() + 4, z), 8, 8, 64, Biome.PLAINS, Biome.SUNFLOWER_PLAINS) != null;
+    }
+
+    /**
+     * Stehplatz (y über dem Boden) oder null.
+     * Streng (naturalOnly): Gras/Erde, max. 20 Blöcke über dem Meer (keine Berge/Hügel),
+     * 7×7-Umgebung höchstens 1 Block Höhenunterschied, kein Wasser, keine Bäume, keine Baumkrone darüber.
+     */
     public static Location goodSpot(World w, int x, int z, boolean plainsOnly, boolean naturalOnly) {
         int y = ground(w, x, z);
-        if (y < w.getSeaLevel() - 2 || y > w.getMaxHeight() - 10) return null;
+        int sea = w.getSeaLevel();
+        if (y < sea - 1 || y > w.getMaxHeight() - 10) return null;
+        if (naturalOnly && y > sea + 20) return null;
         Block g = w.getBlockAt(x, y, z);
         Material m = g.getType();
         if (!m.isSolid() || Tag.LOGS.isTagged(m) || Tag.LEAVES.isTagged(m) || m == Material.ICE || m == Material.PACKED_ICE) return null;
         if (g.getRelative(0, 1, 0).isLiquid()) return null;
         if (naturalOnly) {
             if (!NATURAL.contains(m)) return null;
-            for (int[] d : new int[][]{{2, 0}, {-2, 0}, {0, 2}, {0, -2}}) {
-                int gy = ground(w, x + d[0], z + d[1]);
-                Material nm = w.getBlockAt(x + d[0], gy, z + d[1]).getType();
-                if (Math.abs(gy - y) > 1 || Tag.LOGS.isTagged(nm) || nm == Material.WATER) return null;
-            }
+            int min = y, max = y;
+            for (int dx = -3; dx <= 3; dx += 3)
+                for (int dz = -3; dz <= 3; dz += 3) {
+                    if (dx == 0 && dz == 0) continue;
+                    int gy = ground(w, x + dx, z + dz);
+                    Material nm = w.getBlockAt(x + dx, gy, z + dz).getType();
+                    if (nm == Material.WATER || nm == Material.LAVA || Tag.LOGS.isTagged(nm) || Tag.LEAVES.isTagged(nm)) return null;
+                    min = Math.min(min, gy);
+                    max = Math.max(max, gy);
+                }
+            if (max - min > 1) return null;
+            if (w.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING) > y + 1) return null; // Blätter über dem Platz
         }
-        if (plainsOnly) {
-            Biome b = w.getBiome(x, y, z);
-            if (!(b.equals(Biome.PLAINS) || b.equals(Biome.SUNFLOWER_PLAINS) || b.equals(Biome.MEADOW))) return null;
-        }
+        if (plainsOnly && !plainsBiome(w.getBiome(x, y, z))) return null;
         return new Location(w, x + 0.5, y + 1, z + 0.5);
+    }
+
+    /**
+     * Wie flach ist die Fläche um (x,z)? Kleiner = besser, MAX = ungeeignet.
+     * Prüft ein 9×9-Raster im Abstand von 4 Blöcken (32×32 Fläche).
+     */
+    public static double flatness(World w, int x, int z) {
+        int sea = w.getSeaLevel();
+        int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
+        double sum = 0, sq = 0;
+        int n = 0;
+        for (int dx = -16; dx <= 16; dx += 4)
+            for (int dz = -16; dz <= 16; dz += 4) {
+                int gy = ground(w, x + dx, z + dz);
+                Material m = w.getBlockAt(x + dx, gy, z + dz).getType();
+                if (m == Material.WATER || m == Material.LAVA || Tag.LOGS.isTagged(m)) return Double.MAX_VALUE;
+                min = Math.min(min, gy);
+                max = Math.max(max, gy);
+                sum += gy;
+                sq += (double) gy * gy;
+                n++;
+            }
+        double avg = sum / n;
+        if (avg < sea || avg > sea + 14 || max - min > 5) return Double.MAX_VALUE;
+        double variance = sq / n - avg * avg;
+        return (max - min) * 4 + variance;
     }
 
     private static boolean tooClose(Location l, List<Location> others, double dist) {

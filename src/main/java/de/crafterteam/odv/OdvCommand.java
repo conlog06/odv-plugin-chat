@@ -181,7 +181,12 @@ public class OdvCommand implements TabExecutor {
                 if (needPlayer(sender)) SetupGui.open(plugin, p, SetupGui.Page.MAIN);
             }
             case "quick", "schnellsetup" -> {
-                if (needPlayer(sender) && lobby(sender)) plugin.spawns().quickSetup(p);
+                if (lobby(sender)) plugin.spawns().quickSetup(sender);
+            }
+            case "resetworld", "neuewelt" -> {
+                if (!lobby(sender)) return true;
+                if (plugin.arena().getWorld() == null) tell(sender, "§cKeine Arena vorhanden – nutze /odv quick.");
+                else plugin.spawns().resetArena(sender);
             }
             case "start" -> {
                 int sec = args.length >= 2 ? Math.max(1, parse(args[1], 10)) : 10;
@@ -580,7 +585,7 @@ public class OdvCommand implements TabExecutor {
         Txt.send(s, "§b/ping §7oder §bSchleichen + F §8| §b/backpack §8| §b/coords §8| §b/lb");
         Txt.send(s, "§b/teamliste §8| §b/changelog §8| §b/rank info");
         if (s.hasPermission("odv.admin")) {
-            Txt.send(s, "§c/odv §8- §7Setup-Menü §8| §c/odv quick §8- §7Schnellsetup");
+            Txt.send(s, "§c/odv §8- §7Setup-Menü §8| §c/odv quick §8- §7Schnellsetup §8| §c/odv resetworld §8- §7Welt neu");
             Txt.send(s, "§c/odv start §7[Sek] §8| §c/odv stop §8| §c/odv host §8| §c/odv preset odv|meetup");
             Txt.send(s, "§c/odv setlobby|setcenter|setpractice|build");
             Txt.send(s, "§c/odv wand §8→ §c/odv schem save <Name> §8| §c/odv schem list|paste|delete");
@@ -609,7 +614,7 @@ public class OdvCommand implements TabExecutor {
         } else if (c.equals("odv")) {
             if (args.length == 1) {
                 o.addAll(List.of("help", "teams", "join", "leave", "spec", "bet", "stats", "top"));
-                if (sender.hasPermission("odv.admin")) o.addAll(List.of("setup", "quick", "start", "stop", "host", "preset", "setlobby",
+                if (sender.hasPermission("odv.admin")) o.addAll(List.of("setup", "quick", "resetworld", "start", "stop", "host", "preset", "setlobby",
                         "setcenter", "setpractice", "build", "kit", "wand", "schem", "spawns", "supply", "xray", "antixray", "pregen", "backup", "reload",
                         "announce", "changelog"));
             } else if (args.length == 2) {

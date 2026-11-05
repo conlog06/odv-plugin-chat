@@ -143,6 +143,27 @@ public class Stats {
         });
     }
 
+    public interface SqlFunction<T> {
+        T apply(Connection c) throws SQLException;
+    }
+
+    /** SQL-Abfrage im DB-Thread mit Ergebnis (z. B. Ban-Prüfung beim Login). */
+    public <T> java.util.concurrent.CompletableFuture<T> query(SqlFunction<T> f) {
+        java.util.concurrent.CompletableFuture<T> cf = new java.util.concurrent.CompletableFuture<>();
+        try {
+            db.execute(() -> {
+                try {
+                    cf.complete(f.apply(conn()));
+                } catch (Throwable e) {
+                    cf.completeExceptionally(e);
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            cf.completeExceptionally(e);
+        }
+        return cf;
+    }
+
     /** Tabellen-Präfix der aktiven Datenbank. */
     public String tablePrefix() {
         return mysql ? plugin.settings().dbPrefix : "odv_";

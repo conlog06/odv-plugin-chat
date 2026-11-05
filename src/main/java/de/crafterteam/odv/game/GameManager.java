@@ -210,6 +210,7 @@ public class GameManager {
             ItemStack[] inv = quitInventories.remove(id);
             if (l != null && inv != null) for (ItemStack it : inv) if (it != null && !it.getType().isAir()) l.getWorld().dropItemNaturally(l, it);
             eliminate(id, null, l, "ist nach dem Disconnect ausgeschieden");
+            if (s().strikeLeave && !testRound) plugin.punish().strike(null, id, plugin.stats().name(id), "Runde verlassen");
         }
         if (!shrinking) {
             int left = s().shrinkAfter - elapsed;
@@ -312,6 +313,7 @@ public class GameManager {
         forced = false;
         plugin.teams().finalizeTeams(players);
         plugin.votes().apply();
+        arena().setDirty(true); // nach der Runde wird die Welt neu erstellt
         testRound = plugin.teams().getTeams().size() < 2;
         applyWorldSettings();
         int needed = plugin.teams().getTeams().size();
@@ -564,6 +566,12 @@ public class GameManager {
             }
         }
         for (Player p : Bukkit.getOnlinePlayers()) toLobby(p);
+        plugin.punish().clearCombat();
+        if (s().worldReset == de.crafterteam.odv.Settings.WorldReset.LIVE && arena().isDirty()) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (state == GameState.LOBBY && arena().isDirty()) plugin.spawns().resetArena(null);
+            }, 40L);
+        }
     }
 
     // ===================================================================== Join / Quit / Teilnahme
@@ -602,7 +610,21 @@ public class GameManager {
         if (state.isLobby()) {
             plugin.teams().leave(id);
         } else if (state.isIngame() && alive.contains(id)) {
-            if (s().disconnectGrace > 0) {
+            var tag = plugin.punish().combatTag(id);
+            if (plugin.punish().isBanned(id)) {
+                Location l = p.getLocation();
+                for (ItemStack it : p.getInventory().getContents()) if (it != null && !it.getType().isAir()) l.getWorld().dropItemNaturally(l, it);
+                p.getInventory().clear();
+                eliminate(id, tag != null ? Bukkit.getPlayer(tag.enemy()) : null, l, "wurde gebannt");
+            } else if (tag != null) {
+                // Combat-Log: sofort raus, Gegner bekommt den Kill, Strike
+                Location l = p.getLocation();
+                for (ItemStack it : p.getInventory().getContents()) if (it != null && !it.getType().isAir()) l.getWorld().dropItemNaturally(l, it);
+                p.getInventory().clear();
+                broadcast("§c" + p.getName() + " §7hat sich §cim Kampf ausgeloggt§7!");
+                eliminate(id, Bukkit.getPlayer(tag.enemy()), l, "hat sich im Kampf ausgeloggt");
+                if (s().strikeCombatLog && !testRound) plugin.punish().strike(null, id, p.getName(), "Combat-Log (Ausloggen im Kampf)");
+            } else if (s().disconnectGrace > 0) {
                 disconnected.put(id, s().disconnectGrace);
                 returnLocations.put(id, p.getLocation().clone());
                 List<ItemStack> inv = new ArrayList<>(List.of(p.getInventory().getContents()));
@@ -613,6 +635,7 @@ public class GameManager {
                 for (ItemStack it : p.getInventory().getContents()) if (it != null && !it.getType().isAir()) l.getWorld().dropItemNaturally(l, it);
                 p.getInventory().clear();
                 eliminate(id, null, l, "hat das Spiel verlassen");
+                if (s().strikeLeave && !testRound) plugin.punish().strike(null, id, p.getName(), "Runde verlassen");
             }
         }
         plugin.stats().unload(id);
@@ -631,7 +654,10 @@ public class GameManager {
         optedOut.add(id);
         plugin.teams().leave(id);
         plugin.votes().remove(id);
-        if (state.isIngame() && alive.contains(id)) eliminate(id, null, p.getLocation(), "hat aufgegeben");
+        if (state.isIngame() && alive.contains(id)) {
+            var tag = plugin.punish().combatTag(id);
+            eliminate(id, tag != null ? Bukkit.getPlayer(tag.enemy()) : null, p.getLocation(), "hat aufgegeben");
+        }
         Txt.send(p, s().prefix + "§7Du schaust zu. §8(/odv join zum Mitspielen)");
         if (state.isLobby()) giveLobbyItems(p);
         else toSpectator(p, null);

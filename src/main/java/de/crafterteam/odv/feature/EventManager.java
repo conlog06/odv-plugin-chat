@@ -282,26 +282,53 @@ public class EventManager {
 
     // ===================================================================== Siegerpodest
 
+    /** Gespeichertes Podest, damit es nach einem Welt-Reset neu aufgebaut werden kann. */
+    private record PodiumEntry(UUID id, com.destroystokyo.paper.profile.PlayerProfile profile, org.bukkit.inventory.ItemStack[] gear) {}
+    private final List<PodiumEntry> lastPodium = new ArrayList<>();
+    private String lastPodiumInfo;
+
     public void podium(MTeam winner, List<Map.Entry<UUID, Integer>> topKillers) {
         if (!plugin.settings().has(Feature.PODIUM)) return;
-        Location lobby = plugin.arena().getLobby();
-        if (lobby == null) return;
-        clearPodium();
         List<UUID> people = new ArrayList<>();
         if (winner != null) people.addAll(winner.getMembers());
         for (Map.Entry<UUID, Integer> e : topKillers) if (!people.contains(e.getKey())) people.add(e.getKey());
+        lastPodium.clear();
+        for (int i = 0; i < Math.min(3, people.size()); i++) {
+            UUID id = people.get(i);
+            Player online = Bukkit.getPlayer(id);
+            if (online != null) {
+                var inv = online.getInventory();
+                org.bukkit.inventory.ItemStack[] gear = {clone(inv.getHelmet()), clone(inv.getChestplate()), clone(inv.getLeggings()), clone(inv.getBoots()), clone(inv.getItemInMainHand())};
+                lastPodium.add(new PodiumEntry(id, online.getPlayerProfile(), gear));
+            } else {
+                lastPodium.add(new PodiumEntry(id, null, null));
+            }
+        }
+        lastPodiumInfo = plugin.settings().mode.display + " · " + new java.text.SimpleDateFormat("dd.MM.yy").format(new java.util.Date());
+        rebuildPodium();
+    }
+
+    private static org.bukkit.inventory.ItemStack clone(org.bukkit.inventory.ItemStack it) {
+        return it == null ? null : it.clone();
+    }
+
+    /** Podest (neu) in der aktuellen Lobby aufbauen. */
+    public void rebuildPodium() {
+        if (lastPodiumInfo == null || !plugin.settings().has(Feature.PODIUM)) return;
+        Location lobby = plugin.arena().getLobby();
+        if (lobby == null || lobby.getWorld() == null) return;
+        clearPodium();
         World w = lobby.getWorld();
         int bx = lobby.getBlockX() - 7, by = lobby.getBlockY(), bz = lobby.getBlockZ();
         int[][] spots = {{0, 2}, {-2, 1}, {2, 1}}; // z-Versatz, Höhe
         Material[] blocks = {Material.GOLD_BLOCK, Material.IRON_BLOCK, Material.WAXED_COPPER_BLOCK};
         String[] places = {"§6§l1. Platz", "§f§l2. Platz", "§c§l3. Platz"};
-        String date = new java.text.SimpleDateFormat("dd.MM.yy").format(new java.util.Date());
         for (int i = 0; i < 3; i++) {
             for (int h = 0; h < spots[i][1]; h++) w.getBlockAt(bx, by + h, bz + spots[i][0]).setType(blocks[i], false);
-            if (i >= people.size()) continue;
-            UUID id = people.get(i);
+            if (i >= lastPodium.size()) continue;
+            PodiumEntry pe = lastPodium.get(i);
+            UUID id = pe.id();
             Location at = new Location(w, bx + 0.5, by + spots[i][1], bz + spots[i][0] + 0.5, -90f, 0f);
-            Player online = Bukkit.getPlayer(id);
             int idx = i;
             Mannequin m = w.spawn(at, Mannequin.class, man -> {
                 man.setPersistent(false);
@@ -310,24 +337,25 @@ public class EventManager {
                 man.setGravity(false);
                 man.customName(Txt.c(places[idx] + " §8┃ " + plugin.ranks().of(id).nameColor() + plugin.stats().name(id)));
                 man.setCustomNameVisible(true);
-                man.setDescription(Txt.c("§7" + plugin.settings().mode.display + " · " + date));
-                if (online != null) {
-                    man.setProfile(ResolvableProfile.resolvableProfile(online.getPlayerProfile()));
-                    var eq = man.getEquipment();
-                    var inv = online.getInventory();
-                    eq.setItem(EquipmentSlot.HEAD, inv.getHelmet());
-                    eq.setItem(EquipmentSlot.CHEST, inv.getChestplate());
-                    eq.setItem(EquipmentSlot.LEGS, inv.getLeggings());
-                    eq.setItem(EquipmentSlot.FEET, inv.getBoots());
-                    eq.setItem(EquipmentSlot.HAND, inv.getItemInMainHand());
+                man.setDescription(Txt.c("§7" + lastPodiumInfo));
+                if (pe.profile() != null) {
+                    man.setProfile(ResolvableProfile.resolvableProfile(pe.profile()));
                 } else {
                     man.setProfile(ResolvableProfile.resolvableProfile().name(plugin.stats().name(id)).build());
+                }
+                if (pe.gear() != null) {
+                    var eq = man.getEquipment();
+                    eq.setItem(EquipmentSlot.HEAD, pe.gear()[0]);
+                    eq.setItem(EquipmentSlot.CHEST, pe.gear()[1]);
+                    eq.setItem(EquipmentSlot.LEGS, pe.gear()[2]);
+                    eq.setItem(EquipmentSlot.FEET, pe.gear()[3]);
+                    eq.setItem(EquipmentSlot.HAND, pe.gear()[4]);
                 }
             });
             podium.add(m.getUniqueId());
         }
         plugin.holograms().remove("podium");
-        plugin.holograms().spawn("podium", new Location(w, bx + 0.5, by + 5.2, bz + 0.5), "§6§l✦ Hall of Fame ✦\n§7Letzte Runde · " + date, 1.3f, null);
+        plugin.holograms().spawn("podium", new Location(w, bx + 0.5, by + 5.2, bz + 0.5), "§6§l✦ Hall of Fame ✦\n§7Letzte Runde · " + lastPodiumInfo, 1.3f, null);
     }
 
     public void clearPodium() {
