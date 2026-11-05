@@ -82,12 +82,34 @@ public class TeamManager {
     }
 
     public boolean joinRandom(Player p) {
+        leave(p.getUniqueId());
+        MTeam t = pickTeam(Math.max(2, plugin.game().candidates().size()));
+        return t != null && join(p, t);
+    }
+
+    /**
+     * Smartes Auffüllen: so viele Teams wie nötig (mindestens 2), und immer in das Team mit den
+     * wenigsten Spielern – so landet niemand automatisch mit allen anderen im selben Team.
+     */
+    private MTeam pickTeam(int totalPlayers) {
+        int size = Math.max(1, plugin.settings().teamSize);
+        int used = 0;
+        for (MTeam t : teams) if (!t.getMembers().isEmpty()) used++;
+        int target = Math.min(teams.size(), Math.max(used, Math.max(Math.min(2, totalPlayers), (int) Math.ceil(totalPlayers / (double) size))));
         MTeam best = null;
+        int activated = used;
         for (MTeam t : teams) {
-            if (isFull(t) || t.getMembers().contains(p.getUniqueId())) continue;
-            if (best == null || t.getMembers().size() > best.getMembers().size()) best = t;
+            if (isFull(t)) continue;
+            if (t.getMembers().isEmpty()) {
+                if (activated >= target) continue; // kein zusätzliches Team aufmachen
+                activated++;
+            }
+            if (best == null || t.getMembers().size() < best.getMembers().size()) best = t;
         }
-        return best != null && join(p, best);
+        if (best == null) { // Ziel-Teams voll → irgendein freies Team
+            for (MTeam t : teams) if (!isFull(t) && (best == null || t.getMembers().size() < best.getMembers().size())) best = t;
+        }
+        return best;
     }
 
     public boolean hasCapacity(int players) {
@@ -108,14 +130,35 @@ public class TeamManager {
         Set<UUID> ids = new HashSet<>();
         for (Player p : players) ids.add(p.getUniqueId());
         for (MTeam t : teams) t.getMembers().retainAll(ids);
-        for (Player p : players) {
-            if (getTeam(p) != null) continue;
-            MTeam best = null;
-            for (MTeam t : teams) {
-                if (isFull(t)) continue;
-                if (best == null || t.getMembers().size() > best.getMembers().size()) best = t;
+        List<Player> open = new ArrayList<>();
+        for (Player p : players) if (getTeam(p) == null) open.add(p);
+        java.util.Collections.shuffle(open);
+        for (Player p : open) {
+            MTeam t = pickTeam(players.size());
+            if (t == null) continue;
+            t.getMembers().add(p.getUniqueId());
+            de.crafterteam.odv.util.Txt.send(p, plugin.settings().prefix + "§7Du wurdest automatisch in Team " + t.getDisplayName() + " §7eingeteilt.");
+        }
+        // Alle im selben Team? → aufteilen, sonst wäre die Runde sofort vorbei
+        List<MTeam> used = new ArrayList<>();
+        for (MTeam t : teams) if (!t.getMembers().isEmpty()) used.add(t);
+        if (used.size() == 1 && used.get(0).getMembers().size() >= 2) {
+            MTeam full = used.get(0);
+            MTeam other = null;
+            for (MTeam t : teams) if (t != full) {
+                other = t;
+                break;
             }
-            if (best != null) best.getMembers().add(p.getUniqueId());
+            if (other != null) {
+                List<UUID> m = new ArrayList<>(full.getMembers());
+                java.util.Collections.shuffle(m);
+                for (int i = 0; i < m.size() / 2; i++) {
+                    full.getMembers().remove(m.get(i));
+                    other.getMembers().add(m.get(i));
+                    Player p = org.bukkit.Bukkit.getPlayer(m.get(i));
+                    if (p != null) de.crafterteam.odv.util.Txt.send(p, plugin.settings().prefix + "§7Alle waren im selben Team – du spielst jetzt in Team " + other.getDisplayName() + "§7.");
+                }
+            }
         }
         teams.removeIf(t -> t.getMembers().isEmpty());
     }
@@ -131,6 +174,8 @@ public class TeamManager {
             }
         }
         int rest = Math.max(0, players - assigned - free);
-        return used + (int) Math.ceil(rest / (double) plugin.settings().teamSize);
+        int byCapacity = used + (int) Math.ceil(rest / (double) plugin.settings().teamSize);
+        int smart = Math.max(used, Math.max(Math.min(2, players), (int) Math.ceil(players / (double) Math.max(1, plugin.settings().teamSize))));
+        return Math.min(Math.max(1, teams.size()), Math.max(byCapacity, smart));
     }
 }

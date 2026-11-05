@@ -70,6 +70,13 @@ public class OdvCommand implements TabExecutor {
                 if (p != null) coords(p);
                 return true;
             }
+            case "mod" -> {
+                if (p == null) return true;
+                if (!p.hasPermission("odv.host") && !p.hasPermission("odv.staff") && !p.getUniqueId().equals(plugin.game().getHost())) {
+                    tell(p, "§cNur für Hoster und Team.");
+                } else plugin.game().toggleMod(p);
+                return true;
+            }
             case "lb" -> {
                 if (p != null) Menus.leaderboard(plugin, p, 0);
                 return true;

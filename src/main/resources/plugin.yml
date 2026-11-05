@@ -41,6 +41,8 @@ commands:
     description: Spieler muten
   unmute:
     description: Mute aufheben
+  mod:
+    description: Mod-Modus - Runde moderieren statt mitspielen (Hoster/Team)
   ban:
     description: Spieler permanent bannen
   tempban:

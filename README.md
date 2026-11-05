@@ -1,7 +1,7 @@
 # ODVMeetup 3.3 – ODV & Meetup für Paper 26.3
 
 ## ⬇️ Download
-**[ODVMeetup-3.3.0.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.3.0.jar)**
+**[ODVMeetup-3.3.1.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.3.1.jar)**
 · alle Versionen unter [Releases](https://github.com/conlog06/odv-plugin-chat/releases)
 
 Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite-Treiber bringt Paper mit).
@@ -22,6 +22,12 @@ Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite
   **nur auf flachem, natürlichem Boden** (max. 1 Block Höhenunterschied, keine Bäume darüber, kein Wasser). Teamnamen schweben über den Spawns.
 - **Plattformen**: eigene `.schem` (WorldEdit 7) oder eingebaute Plattform.
 - **Zufällig**: sichere Orte mit Mindestabstand.
+
+## Teams & Hoster
+- **Smartes Auffüllen**: Wer kein Team wählt, kommt immer ins Team mit den wenigsten Spielern; es werden so viele
+  Teams aufgemacht wie nötig (mindestens 2). Sind trotzdem alle im selben Team, wird es automatisch geteilt.
+- **/mod**: Hoster und Team schalten den Mod-Modus an – sie spielen nicht mit, sind Zuschauer und stehen mit **MOD** im Tab.
+- **Host-Menü**: Runde starten/stoppen, Modus, Teams, PvP, Szenarien, Features, Abstimmung, **Map erstellen** und Mod-Modus.
 
 ## Neue Welt nach jeder Runde
 `world.reset-after-round: LIVE` (Standard): Nach jeder Runde – auch nach `/odv stop` – wird die Arena gelöscht und mit
@@ -99,6 +105,7 @@ Content, Premium, Spieler – alles in `plugins/ODVMeetup/ranks.yml` anpassbar. 
 ## Befehle
 | Spieler | |
 |---|---|
+| `/mod` | Hoster/Team: Runde moderieren statt mitspielen |
 | `/team` · `/practice` · `/szenarios` · `/backpack` · `/ping` · `/coords` | Lobby & Runde |
 | `/lb` · `/teamliste` · `/changelog` · `/rank info` | Leaderboard, Team, Neuerungen |
 | `/odv join` · `/odv leave` · `/odv spec` · `/odv bet` | Teilnahme & Zuschauen |
@@ -119,4 +126,4 @@ Content, Premium, Spieler – alles in `plugins/ODVMeetup/ranks.yml` anpassbar. 
 | `/odv announce <Text>` · `/odv changelog post` | Chat + Discord-Webhook |
 
 ## Selbst bauen
-`mvn package` (JDK 21+) → `target/ODVMeetup-3.3.0.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.
+`mvn package` (JDK 21+) → `target/ODVMeetup-3.3.1.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.

@@ -27,8 +27,11 @@ public class HostGui implements InventoryHolder {
     private final Inventory inv;
     private final Map<Integer, BiConsumer<Player, ClickType>> actions = new HashMap<>();
 
-    private HostGui(OdvPlugin plugin) {
+    private final Player viewer;
+
+    private HostGui(OdvPlugin plugin, Player viewer) {
         this.plugin = plugin;
+        this.viewer = viewer;
         this.inv = Bukkit.createInventory(this, 45, Txt.c("§8» §a§lHost-Menü"));
         render();
     }
@@ -38,7 +41,7 @@ public class HostGui implements InventoryHolder {
             Txt.send(p, plugin.settings().prefix + "§cDu bist nicht der Host dieser Runde.");
             return;
         }
-        p.openInventory(new HostGui(plugin).getInventory());
+        p.openInventory(new HostGui(plugin, p).getInventory());
     }
 
     @Override
@@ -65,6 +68,10 @@ public class HostGui implements InventoryHolder {
         if (st == GameState.LOBBY) {
             set(20, plugin.items().of(Material.EMERALD_BLOCK).name("§a§lRunde starten").lore("§7Startet in 10 Sekunden").glow(true).build(), (p, c) -> {
                 p.closeInventory();
+                if (plugin.spawns().isBusy()) {
+                    Txt.send(p, s().prefix + "§cDie Map wird noch erstellt – kurz warten.");
+                    return;
+                }
                 String err = plugin.game().forceStart(10);
                 if (err != null) Txt.send(p, s().prefix + err);
                 else plugin.game().broadcast("§aRunde gestartet von Host §e" + p.getName() + "§a.");
@@ -114,6 +121,21 @@ public class HostGui implements InventoryHolder {
                 (p, c) -> ScenarioGui.open(plugin, p, ScenarioGui.Mode.FEATURES));
         set(32, plugin.items().of(Material.WRITABLE_BOOK).name("§d§lAbstimmung ansehen").lore("§7Live-Stimmen der Spieler").build(),
                 (p, c) -> ScenarioGui.open(plugin, p, ScenarioGui.Mode.VOTE));
+        set(33, plugin.items().of(Material.SPYGLASS).name("§6§lMod-Modus: " + (plugin.game().isMod(viewer) ? "§aAn" : "§cAus") + " §8(/mod)").lore("§7An: du moderierst und spielst", "§7bei den Runden nicht mit.", "", "§eKlick: §7umschalten").build(), (p, c) -> {
+            plugin.game().toggleMod(p);
+            refresh(p);
+        });
+        boolean hasArena = plugin.arena().getWorld() != null;
+        boolean busy = plugin.spawns().isBusy();
+        set(29, plugin.items().of(busy ? Material.CLOCK : Material.FILLED_MAP).name(busy ? "§e§lMap wird erstellt …" : hasArena ? "§2§lNeue Map erstellen" : "§2§lMap erstellen")
+                .lore(hasArena ? new String[]{"§7Löscht die aktuelle Arena und baut", "§7eine frische Welt mit neuem Spawn,", "§7Lobby und Practice.", "", "§eKlick: §7neue Map"}
+                        : new String[]{"§7Neue Welt mit Plains-Spawn, Netherportal,", "§7schwebender Lobby und Practice.", "", "§eKlick: §7erstellen"}).build(), (p, c) -> {
+            if (!lobby(p) || busy) return;
+            p.closeInventory();
+            plugin.game().broadcast("§7Host §e" + p.getName() + " §7erstellt eine neue Map …");
+            if (plugin.arena().getWorld() != null) plugin.spawns().resetArena(p);
+            else plugin.spawns().quickSetup(p);
+        });
         set(44, plugin.items().of(Material.BARRIER).name("§cSchließen").build(), (p, c) -> p.closeInventory());
     }
 

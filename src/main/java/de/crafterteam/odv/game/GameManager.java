@@ -68,6 +68,7 @@ public class GameManager {
 
     private final Set<UUID> alive = new HashSet<>();
     private final Set<UUID> optedOut = new HashSet<>();
+    private final Set<UUID> mods = new HashSet<>();
     private final Map<UUID, Integer> kills = new HashMap<>();
     private final Map<UUID, Location> deathLocations = new HashMap<>();
     private final Map<UUID, Integer> disconnected = new HashMap<>();
@@ -88,6 +89,29 @@ public class GameManager {
     public boolean isAlive(UUID id) { return alive.contains(id); }
     public Set<UUID> getAlive() { return Collections.unmodifiableSet(alive); }
     public boolean isOptedOut(Player p) { return optedOut.contains(p.getUniqueId()); }
+    public boolean isMod(Player p) { return mods.contains(p.getUniqueId()); }
+
+    /** /mod: Hoster/Team moderiert die Runde und spielt nicht mit. */
+    public void toggleMod(Player p) {
+        UUID id = p.getUniqueId();
+        if (mods.remove(id)) {
+            optedOut.remove(id);
+            Txt.send(p, s().prefix + "§7Mod-Modus §caus §8– §adu spielst in der nächsten Runde mit.");
+            if (state.isLobby()) giveLobbyItems(p);
+            lastListName.remove(p.getUniqueId());
+            return;
+        }
+        mods.add(id);
+        optedOut.add(id);
+        plugin.teams().leave(id);
+        plugin.votes().remove(id);
+        plugin.practice().leave(p, true);
+        if (state.isIngame() && alive.contains(id)) eliminate(id, null, p.getLocation(), "moderiert jetzt die Runde");
+        Txt.send(p, s().prefix + "§7Mod-Modus §aan §8– §7du bist bei den Runden nicht dabei. §8(/mod zum Beenden)");
+        if (state.isLobby()) giveLobbyItems(p);
+        else toSpectator(p, null);
+        lastListName.remove(p.getUniqueId());
+    }
     public int getKills(UUID u) { return kills.getOrDefault(u, 0); }
     public Location getDeathLocation(UUID id) { return deathLocations.get(id); }
     public int getElapsed() { return elapsed; }
@@ -647,6 +671,7 @@ public class GameManager {
     public void toggleParticipation(Player p) {
         UUID id = p.getUniqueId();
         if (optedOut.remove(id)) {
+            mods.remove(id);
             Txt.send(p, s().prefix + "§aDu spielst in der nächsten Runde mit.");
             if (state.isLobby()) giveLobbyItems(p);
             return;
@@ -974,6 +999,7 @@ public class GameManager {
     /** Name in der Tabliste: Rang-Prefix in der Lobby, Teamfarbe im Spiel. */
     private String listName(Player p, MTeam team, boolean spectator, boolean ingame) {
         var r = plugin.ranks().of(p);
+        if (mods.contains(p.getUniqueId())) return "§6§lMOD §r" + r.nameColor() + p.getName();
         if (spectator && ingame) return "§7§o" + p.getName();
         if (ingame && team != null && !s().isSolo()) return team.getColor() + "[" + team.getNumber() + "] " + r.nameColor() + p.getName();
         return r.prefix() + p.getName();

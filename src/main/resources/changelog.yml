@@ -1,6 +1,12 @@
 # Wird mit /changelog angezeigt und mit /odv changelog post an Discord geschickt.
 # Neueste Version oben. Eigene Einträge einfach ergänzen.
 versions:
+  - version: "3.3.1"
+    date: "05.11.2026"
+    changes:
+      - "/mod: Hoster und Team moderieren die Runde und spielen automatisch nicht mit (MOD im Tab)"
+      - "Host-Menü: Map erstellen bzw. neue Map per Klick, Mod-Modus umschalten"
+      - "Smartes Teamsystem: wer kein Team wählt, wird gleichmäßig verteilt – nie alle ins selbe Team"
   - version: "3.3.0"
     date: "05.11.2026"
     changes:

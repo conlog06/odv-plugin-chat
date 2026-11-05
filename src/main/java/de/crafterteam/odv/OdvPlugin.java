@@ -83,7 +83,7 @@ public class OdvPlugin extends JavaPlugin {
         wand = new Wand(this);
         command = new OdvCommand(this);
 
-        for (String c : new String[]{"odv", "team", "practice", "szenarios", "backpack", "ping", "coords", "lb", "teamliste", "changelog", "rank", "sc", "mute", "unmute"}) {
+        for (String c : new String[]{"odv", "team", "practice", "szenarios", "backpack", "ping", "coords", "mod", "lb", "teamliste", "changelog", "rank", "sc", "mute", "unmute"}) {
             var pc = getCommand(c);
             if (pc != null) {
                 pc.setExecutor(command);
