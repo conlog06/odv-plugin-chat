@@ -12,7 +12,13 @@ public enum Scenario {
     RODLESS("RodLess", Material.FISHING_ROD, "Keine Angeln."),
     BACKPACK("Backpack", Material.BUNDLE, "Jedes Team hat einen Rucksack: /backpack"),
     DIAMONDLESS("Diamondless", Material.DIAMOND_ORE, "Diamanterz droppt nichts – Spieler droppen beim Tod 1 Diamant."),
-    GOLDLESS("Goldless", Material.GOLD_ORE, "Golderz droppt nichts – Spieler droppen beim Tod 4 Goldbarren.");
+    GOLDLESS("Goldless", Material.GOLD_ORE, "Golderz droppt nichts – Spieler droppen beim Tod 4 Goldbarren."),
+    NETHERITELESS("Netheriteless", Material.NETHERITE_INGOT, "Kein Netherite: Ancient Debris droppt nichts, kein Netherite-Upgrade."),
+    SHIELDLESS("Shieldless", Material.SHIELD, "Keine Schilde."),
+    MACELESS("Maceless", Material.MACE, "Kein Streitkolben (Mace)."),
+    ABSORPTIONLESS("Absorptionless", Material.GOLDEN_APPLE, "Goldäpfel geben keine Absorption-Herzen."),
+    FIRELESS("Fireless", Material.LAVA_BUCKET, "Kein Feuer- und Lavaschaden."),
+    HASTEY_BOYS("Hastey Boys", Material.GOLDEN_PICKAXE, "Gecraftete Werkzeuge haben Effizienz III + Haltbarkeit III.");
 
     public final String display;
     public final Material icon;

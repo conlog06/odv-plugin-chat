@@ -37,12 +37,20 @@ combat:
   old-golden-apples: true     # Notch-Apfel wie in 1.8
   old-damage: true            # Schwert-/Axt-Schaden wie in 1.8
 
+# Erlaubte Verzauberungen: max. Level, 0 = verboten. Nicht aufgeführt = Vanilla. Auch im Host-Menü einstellbar.
+enchantments: {}
+#  sharpness: 3
+#  protection: 3
+#  fire_aspect: 0
+
 combat-log:
   enabled: true
   seconds: 15                 # so lange gilt man nach einem Treffer als "im Kampf"
   # Wer sich im Kampf ausloggt, scheidet sofort aus – der Gegner bekommt den Kill.
 
 punishments:
+  bans-enabled: true          # Bansystem an/aus
+  strikes-enabled: true       # Strikesystem an/aus
   strike-combat-log: true     # Strike für Ausloggen im Kampf
   strike-leave: true          # Strike für Verlassen der Runde (nicht rechtzeitig zurück)
   strike-expire-days: 30      # Strikes verfallen nach X Tagen (0 = nie)
@@ -94,7 +102,8 @@ spawn:
   radius: 0                   # 0 = automatisch
   min-team-distance: 40       # nur SCATTER
   protection-radius: 12       # Mittel-Spawn geschützt
-  regenerate-on-start: true
+  regenerate-on-start: true   # nur ohne vorgebaute Spawns
+  pregenerate: 50             # so viele Team-Spawns beim Welt-Erstellen vorbauen (0 = aus)
   blocks-per-tick: 4000
 
 storage:
@@ -127,6 +136,12 @@ scenarios:
   backpack: false
   diamondless: false
   goldless: false
+  netheriteless: false
+  shieldless: false
+  maceless: false
+  absorptionless: false
+  fireless: false
+  hastey-boys: false
   timebomb-seconds: 30
   xtra-apples-chance: 4.0     # Prozent pro Blatt
 

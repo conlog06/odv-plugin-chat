@@ -352,6 +352,11 @@ public class GameListener implements Listener {
             if (top) g.click(p, e.getRawSlot(), e.getClick());
             return;
         }
+        if (h instanceof de.crafterteam.odv.gui.ActionGui g) {
+            e.setCancelled(true);
+            if (top) g.click(p, e.getRawSlot(), e.getClick());
+            return;
+        }
         if (locked() && !practice(p) && !builder(p)) e.setCancelled(true);
     }
 
@@ -359,7 +364,7 @@ public class GameListener implements Listener {
     public void onDrag(InventoryDragEvent e) {
         InventoryHolder h = e.getInventory().getHolder(false);
         if (h instanceof SetupGui || h instanceof Menus || h instanceof de.crafterteam.odv.gui.ScenarioGui
-                || h instanceof de.crafterteam.odv.gui.HostGui) e.setCancelled(true);
+                || h instanceof de.crafterteam.odv.gui.HostGui || h instanceof de.crafterteam.odv.gui.ActionGui) e.setCancelled(true);
         else if (locked() && e.getWhoClicked() instanceof Player p && !practice(p) && !builder(p)) e.setCancelled(true);
     }
 

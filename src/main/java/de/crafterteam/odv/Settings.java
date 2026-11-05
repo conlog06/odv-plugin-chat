@@ -93,7 +93,10 @@ public class Settings {
     public int combatSeconds, strikeExpireDays;
     public final java.util.TreeMap<Integer, String> autoBan = new java.util.TreeMap<>();
     public String banAppeal, freezeLogoutBan;
-    public boolean hostAutoMod;
+    public boolean hostAutoMod, bansEnabled, strikesEnabled;
+    public int spawnPregen;
+    /** Max. Level je Verzauberung (Schlüssel z. B. "sharpness"); fehlt = Vanilla-Maximum, 0 = verboten. */
+    public final java.util.Map<String, Integer> enchantLimits = new java.util.TreeMap<>();
     public record BanPreset(String reason, boolean mute, long duration) {}
     public final java.util.TreeMap<Integer, BanPreset> banIds = new java.util.TreeMap<>();
     public String discordWebhook;
@@ -157,6 +160,12 @@ public class Settings {
         banAppeal = c.getString("punishments.appeal", "");
         freezeLogoutBan = c.getString("punishments.freeze-logout-ban", "30d");
         hostAutoMod = c.getBoolean("host.auto-mod", true);
+        bansEnabled = c.getBoolean("punishments.bans-enabled", true);
+        strikesEnabled = c.getBoolean("punishments.strikes-enabled", true);
+        spawnPregen = clamp(c.getInt("spawn.pregenerate", 50), 0, 200);
+        enchantLimits.clear();
+        var en = c.getConfigurationSection("enchantments");
+        if (en != null) for (String k : en.getKeys(false)) enchantLimits.put(k.toLowerCase(java.util.Locale.ROOT), Math.max(0, en.getInt(k)));
         banIds.clear();
         var ids = c.getConfigurationSection("punishments.ids");
         if (ids == null) { // Standard-IDs
@@ -288,6 +297,11 @@ public class Settings {
         c.set("discord.round-results", discordResults);
         c.set("backup.on-start", backupOnStart);
         c.set("backup.keep", backupKeep);
+        c.set("enchantments", null);
+        for (var e : enchantLimits.entrySet()) c.set("enchantments." + e.getKey(), e.getValue());
+        c.set("punishments.bans-enabled", bansEnabled);
+        c.set("punishments.strikes-enabled", strikesEnabled);
+        c.set("spawn.pregenerate", spawnPregen);
         plugin.saveConfig();
     }
 

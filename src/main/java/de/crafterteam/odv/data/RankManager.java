@@ -63,6 +63,18 @@ public class RankManager {
         }
         if (!f.isFile()) plugin.saveResource("ranks.yml", false);
         YamlConfiguration y = YamlConfiguration.loadConfiguration(f);
+        if (y.getInt("format", 2) < 3) {
+            // 3.5: Spieler-Rang bekommt einen grauen Farbverlauf (nur wenn noch unverändert)
+            if (y.getString("ranks.spieler.prefix", "").isEmpty()) {
+                y.set("ranks.spieler.prefix", "<gradient:#5C6670:#B8C0C8>SPIELER</gradient> <dark_gray>┃</dark_gray> ");
+                y.set("ranks.spieler.name-color", "#C3CAD2");
+            }
+            y.set("format", 3);
+            try {
+                y.save(f);
+            } catch (java.io.IOException ignored) {
+            }
+        }
         ranks.clear();
         ConfigurationSection sec = y.getConfigurationSection("ranks");
         if (sec != null) {

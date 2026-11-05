@@ -136,7 +136,30 @@ public class HostGui implements InventoryHolder {
             if (plugin.arena().getWorld() != null) plugin.spawns().resetArena(p);
             else plugin.spawns().quickSetup(p);
         });
+        set(38, plugin.items().of(Material.CHEST).name("§6§lKits").lore("§7Aktiv: §f" + nz(plugin.kits().active(s().mode == Settings.Mode.ODV
+                ? de.crafterteam.odv.data.Kits.Type.ODV : de.crafterteam.odv.data.Kits.Type.MEETUP)), "§eKlick: §7Kit auswählen").build(),
+                (p, c) -> ExtraMenus.kits(plugin, p));
+        set(39, plugin.items().of(Material.ENCHANTED_BOOK).name("§d§lVerzauberungen").lore(s().enchantLimits.isEmpty() ? "§7Alle erlaubt (Vanilla)"
+                : "§7" + s().enchantLimits.size() + " eingeschränkt", "§eKlick: §7einstellen").build(), (p, c) -> ExtraMenus.enchants(plugin, p, 0));
+        if (viewer.hasPermission("odv.admin")) {
+            set(41, plugin.items().of(s().bansEnabled ? Material.IRON_DOOR : Material.OAK_DOOR).name("§c§lBansystem: " + (s().bansEnabled ? "§aAn" : "§cAus"))
+                    .lore("§7/ban, /tempban, Auto-Bans, Ban beim Login", "§eKlick: §7umschalten").build(), (p, c) -> {
+                s().bansEnabled = !s().bansEnabled;
+                s().save();
+                refresh(p);
+            });
+            set(42, plugin.items().of(s().strikesEnabled ? Material.REDSTONE : Material.GUNPOWDER).name("§c§lStrikesystem: " + (s().strikesEnabled ? "§aAn" : "§cAus"))
+                    .lore("§7Strikes für Combat-Log/Verlassen,", "§7/strike, /strikes", "§eKlick: §7umschalten").build(), (p, c) -> {
+                s().strikesEnabled = !s().strikesEnabled;
+                s().save();
+                refresh(p);
+            });
+        }
         set(44, plugin.items().of(Material.BARRIER).name("§cSchließen").build(), (p, c) -> p.closeInventory());
+    }
+
+    private static String nz(String s) {
+        return s == null ? "Standard" : s;
     }
 
     private boolean lobby(Player p) {

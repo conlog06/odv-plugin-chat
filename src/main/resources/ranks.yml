@@ -12,7 +12,7 @@
 #             der selbst einen geschützten Rang mit mindestens diesem Gewicht hat
 # ==============================================================
 
-format: 2
+format: 3
 default-rank: spieler
 
 ranks:
@@ -98,8 +98,8 @@ ranks:
     permissions: [odv.bypass.slowmode]
   spieler:
     name: "Spieler"
-    prefix: ""
-    name-color: "#AAAAAA"
+    prefix: "<gradient:#5C6670:#B8C0C8>SPIELER</gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#C3CAD2"
     weight: 0
     staff: false
     permissions: []

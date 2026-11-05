@@ -70,6 +70,7 @@ public class GameManager {
     private final Set<UUID> optedOut = new HashSet<>();
     private final Set<UUID> mods = new HashSet<>();
     private final Map<UUID, ItemStack[]> deathInventories = new HashMap<>();
+    private final Set<UUID> participated = new HashSet<>();
     private int finaleTask = -1;
     private final Map<UUID, Integer> kills = new HashMap<>();
     private final Map<UUID, Location> deathLocations = new HashMap<>();
@@ -343,7 +344,8 @@ public class GameManager {
         testRound = plugin.teams().getTeams().size() < 2;
         applyWorldSettings();
         int needed = plugin.teams().getTeams().size();
-        boolean regenerate = s().regenerateOnStart || arena().getSpawns().size() < needed;
+        // vorgebaute Spawns (spawn.pregenerate) werden genutzt, sonst neu bauen
+        boolean regenerate = arena().getSpawns().size() < needed || (s().regenerateOnStart && s().spawnPregen <= 0);
         if (regenerate) {
             broadcast("§7Spawns werden vorbereitet...");
             for (Player p : players) Txt.title(p, s().mode.title, "§7Spawns werden gebaut...");
@@ -359,8 +361,17 @@ public class GameManager {
         if (spawns.size() < teams.size()) {
             for (Location l : plugin.spawns().ring(world, arena().getCenter(), teams.size() - spawns.size(), plugin.spawns().autoRadius(teams.size()) + 15)) spawns.add(l);
         }
+        if (spawns.size() > teams.size() && s().spawnStyle != Settings.SpawnStyle.SCATTER && !teams.isEmpty()) {
+            // gleichmäßig verteilt aus den vorgebauten Spawns wählen
+            double step = spawns.size() / (double) teams.size();
+            int off = new java.util.Random().nextInt(spawns.size());
+            List<Location> pick = new ArrayList<>();
+            for (int i = 0; i < teams.size(); i++) pick.add(spawns.get((off + (int) Math.floor(i * step)) % spawns.size()));
+            spawns = pick;
+        }
         Collections.shuffle(spawns);
         alive.clear();
+        participated.clear();
         kills.clear();
         deathLocations.clear();
         disconnected.clear();
@@ -393,6 +404,7 @@ public class GameManager {
                 p.teleport(spot);
                 plugin.kits().give(p, kit);
                 alive.add(p.getUniqueId());
+                participated.add(p.getUniqueId());
                 kills.put(p.getUniqueId(), 0);
                 plugin.stats().add(p.getUniqueId(), "games");
             }
@@ -564,6 +576,7 @@ public class GameManager {
             at = spots.isEmpty() ? null : spots.get(0);
         }
         alive.add(id);
+        participated.add(id);
         kills.putIfAbsent(id, 0);
         resetPlayer(p, GameMode.SURVIVAL);
         p.teleport(safeSpot(at));
@@ -573,6 +586,16 @@ public class GameManager {
         Txt.title(p, "§a§lLatejoin", "§7Team " + t.getDisplayName());
         broadcast("§a" + p.getName() + " §7spielt nach" + (s().isSolo() ? "" : " §8(Team " + t.getDisplayName() + "§8)") + "§7. §8[" + alive.size() + " übrig]");
         lastListName.remove(id);
+        return null;
+    }
+
+    /** Darf der Spieler selbst per /latejoin nachjoinen? null = ja, sonst Grund. */
+    public String selfLateJoinDenied(Player p) {
+        if (state != GameState.FREEZE && state != GameState.PROTECTION) return "§cNachjoinen geht nur während der Schutzzeit.";
+        if (alive.contains(p.getUniqueId())) return "§cDu spielst bereits.";
+        if (participated.contains(p.getUniqueId())) return "§cDu warst in dieser Runde schon dabei.";
+        if (mods.contains(p.getUniqueId())) return "§cDu bist im Mod-Modus §8(/mod)§c.";
+        if (!p.hasPermission("odv.play")) return "§cDu darfst nicht mitspielen.";
         return null;
     }
 

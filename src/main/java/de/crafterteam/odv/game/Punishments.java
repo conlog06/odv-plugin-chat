@@ -239,6 +239,7 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
 
     /** Strike vergeben (by = null → System). Prüft danach die Auto-Bans. */
     public void strike(CommandSender by, UUID id, String name, String reason) {
+        if (!s().strikesEnabled) return;
         String byName = by == null ? "System" : by.getName();
         String n = name != null ? name : plugin.stats().name(id);
         long now = System.currentTimeMillis();
@@ -284,6 +285,10 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
 
     /** dur: 0 = permanent, sonst Millisekunden. */
     public void ban(CommandSender by, UUID id, String name, long dur, String reason) {
+        if (!s().bansEnabled) {
+            if (by != null) Txt.send(by, s().prefix + "§cDas Bansystem ist deaktiviert.");
+            return;
+        }
         String byName = by == null ? "System" : by.getName();
         long now = System.currentTimeMillis();
         Ban b = new Ban(id, cut(name, 16), cut(reason, 255), cut(byName, 32), now, dur == 0 ? 0 : now + dur);
@@ -320,7 +325,7 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPreLogin(AsyncPlayerPreLoginEvent e) {
-        if (e.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED || tBans == null) return;
+        if (e.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED || tBans == null || !s().bansEnabled) return;
         UUID id = e.getUniqueId();
         Ban b;
         try {
@@ -338,6 +343,14 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] a) {
         String c = cmd.getName().toLowerCase(Locale.ROOT);
         String pre = s().prefix;
+        if (!s().bansEnabled && (c.equals("ban") || c.equals("tempban") || c.equals("unban") || c.equals("banlist"))) {
+            Txt.send(sender, pre + "§cDas Bansystem ist deaktiviert. §7(config: punishments.bans-enabled)");
+            return true;
+        }
+        if (!s().strikesEnabled && (c.equals("strike") || c.equals("unstrike") || c.equals("strikes"))) {
+            Txt.send(sender, pre + "§cDas Strikesystem ist deaktiviert. §7(config: punishments.strikes-enabled)");
+            return true;
+        }
         switch (c) {
             case "kick" -> {
                 if (!perm(sender, "odv.kick")) return true;

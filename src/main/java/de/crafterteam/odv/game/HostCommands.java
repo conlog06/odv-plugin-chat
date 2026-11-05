@@ -204,11 +204,20 @@ public class HostCommands implements CommandExecutor, TabCompleter, Listener {
                 }
             }
             case "latejoin" -> {
-                if (!needHost(sender)) return;
-                if (a.length < 1) {
-                    tell(sender, "§e/latejoin <Spieler> [Team]");
+                if (a.length < 1) { // selbst nachjoinen (Schutzzeit)
+                    if (me == null) return;
+                    String deny = g().selfLateJoinDenied(me);
+                    if (deny != null) {
+                        tell(me, deny);
+                        return;
+                    }
+                    if (s().isSolo()) {
+                        String err = g().lateJoin(me, null);
+                        if (err != null) tell(me, err);
+                    } else de.crafterteam.odv.gui.ExtraMenus.latejoin(plugin, me, me);
                     return;
                 }
+                if (!needHost(sender)) return;
                 Player t = online(sender, a[0]);
                 if (t == null) return;
                 MTeam team = null;
@@ -218,6 +227,9 @@ public class HostCommands implements CommandExecutor, TabCompleter, Listener {
                         tell(sender, "§cTeam §f" + a[1] + " §cgibt es nicht.");
                         return;
                     }
+                } else if (me != null && !s().isSolo() && g().getState().isIngame()) {
+                    de.crafterteam.odv.gui.ExtraMenus.latejoin(plugin, me, t); // Team per Menü wählen
+                    return;
                 }
                 String err = g().lateJoin(t, team);
                 tell(sender, err != null ? err : "§a" + t.getName() + " spielt jetzt mit.");

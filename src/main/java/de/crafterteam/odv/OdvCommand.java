@@ -378,33 +378,86 @@ public class OdvCommand implements TabExecutor {
     }
 
     private void kit(CommandSender sender, Player p, String[] args) {
-        if (!needPlayer(sender) || !lobby(sender)) return;
+        if (!needPlayer(sender)) return;
+        String usage = "§e/odv kit §7(Menü) §8| §e/odv kit create|use|delete <Name> §8| §e/odv kit list §8| §e/odv kit use standard §8| §e/odv kit give";
         if (args.length < 2) {
-            tell(sender, "§e/odv kit save|give|reset [meetup|odv|practice]");
+            de.crafterteam.odv.gui.ExtraMenus.kits(plugin, p);
             return;
         }
         Kits.Type t = s().mode == Settings.Mode.ODV ? Kits.Type.ODV : Kits.Type.MEETUP;
-        if (args.length >= 3) {
-            try {
-                t = Kits.Type.valueOf(args[2].toUpperCase(Locale.ROOT));
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
+        String a = args[1].toLowerCase(Locale.ROOT);
+        String name = args.length >= 3 ? args[2] : null;
         try {
-            switch (args[1].toLowerCase(Locale.ROOT)) {
-                case "save" -> {
-                    plugin.kits().save(p, t);
-                    tell(sender, "§aKit " + t + " gespeichert.");
+            switch (a) {
+                case "create", "save" -> {
+                    if (name == null || Kits.clean(name).isEmpty()) {
+                        // altes Verhalten: /odv kit save [meetup|odv|practice]
+                        if (a.equals("save")) {
+                            plugin.kits().create(p, t.name().toLowerCase(Locale.ROOT) + "-eigen");
+                            plugin.kits().use(t, t.name().toLowerCase(Locale.ROOT) + "-eigen");
+                            tell(sender, "§aKit gespeichert und für " + t + " aktiviert.");
+                        } else tell(sender, usage);
+                        return;
+                    }
+                    Kits.Type target = parseType(name);
+                    if (target != null) { // /odv kit save odv
+                        plugin.kits().create(p, target.name().toLowerCase(Locale.ROOT) + "-eigen");
+                        plugin.kits().use(target, target.name().toLowerCase(Locale.ROOT) + "-eigen");
+                        tell(sender, "§aKit gespeichert und für " + target + " aktiviert.");
+                        return;
+                    }
+                    plugin.kits().create(p, name);
+                    tell(sender, "§aKit §f" + Kits.clean(name) + " §agespeichert. §7Aktivieren: §e/odv kit use " + Kits.clean(name));
                 }
-                case "give" -> plugin.kits().give(p, t);
+                case "use" -> {
+                    if (name == null) {
+                        tell(sender, usage);
+                        return;
+                    }
+                    if (args.length >= 4 && parseType(args[3]) != null) t = parseType(args[3]);
+                    if (name.equalsIgnoreCase("standard") || name.equalsIgnoreCase("default")) {
+                        plugin.kits().use(t, null);
+                        tell(sender, "§7Standard-Kit für " + t + " aktiv.");
+                    } else if (!plugin.kits().exists(name)) tell(sender, "§cKit §f" + name + " §cgibt es nicht. §7(/odv kit list)");
+                    else {
+                        plugin.kits().use(t, name);
+                        tell(sender, "§aKit §f" + Kits.clean(name) + " §aist für " + t + " aktiv.");
+                    }
+                }
+                case "delete" -> {
+                    if (name == null || !plugin.kits().exists(name)) tell(sender, "§cKit gibt es nicht.");
+                    else {
+                        plugin.kits().delete(name);
+                        tell(sender, "§7Kit §f" + name + " §7gelöscht.");
+                    }
+                }
+                case "list" -> {
+                    tell(sender, "§7Kits: §f" + (plugin.kits().names().isEmpty() ? "-" : String.join("§7, §f", plugin.kits().names())));
+                    tell(sender, "§7Aktiv: §eODV §f" + nz(plugin.kits().active(Kits.Type.ODV)) + " §8| §eMeetup §f" + nz(plugin.kits().active(Kits.Type.MEETUP)));
+                }
+                case "give" -> plugin.kits().give(p, name != null && parseType(name) != null ? parseType(name) : t);
                 case "reset" -> {
-                    plugin.kits().reset(t);
-                    tell(sender, "§7Standard-Kit " + t + " aktiv.");
+                    Kits.Type rt = name != null && parseType(name) != null ? parseType(name) : t;
+                    plugin.kits().use(rt, null);
+                    plugin.kits().reset(rt);
+                    tell(sender, "§7Standard-Kit " + rt + " aktiv.");
                 }
-                default -> tell(sender, "§e/odv kit save|give|reset [meetup|odv|practice]");
+                default -> tell(sender, usage);
             }
         } catch (IOException e) {
             tell(sender, "§c" + e.getMessage());
+        }
+    }
+
+    private static String nz(String s) {
+        return s == null ? "Standard" : s;
+    }
+
+    private static Kits.Type parseType(String s) {
+        try {
+            return Kits.Type.valueOf(s.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
         }
     }
 
@@ -662,7 +715,7 @@ public class OdvCommand implements TabExecutor {
             } else if (args.length == 2) {
                 switch (args[0].toLowerCase(Locale.ROOT)) {
                     case "preset" -> o.addAll(List.of("odv", "meetup"));
-                    case "kit" -> o.addAll(List.of("save", "give", "reset"));
+                    case "kit" -> o.addAll(List.of("create", "use", "delete", "list", "give", "reset"));
                     case "schem", "schematic" -> o.addAll(List.of("list", "save", "paste", "delete"));
                     case "spawns" -> o.addAll(List.of("build", "tp", "clear", "undo"));
                     case "top" -> o.addAll(List.of("kills", "wetten", "practice"));

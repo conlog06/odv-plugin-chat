@@ -1,7 +1,7 @@
-# ODVMeetup 3.4 – ODV & Meetup für Paper 26.3
+# ODVMeetup 3.5 – ODV & Meetup für Paper 26.3
 
 ## ⬇️ Download
-**[ODVMeetup-3.4.0.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.4.0.jar)**
+**[ODVMeetup-3.5.0.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.5.0.jar)**
 · alle Versionen unter [Releases](https://github.com/conlog06/odv-plugin-chat/releases)
 
 Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite-Treiber bringt Paper mit).
@@ -33,6 +33,8 @@ Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite
 **Vorbereitung:** `/host` (öffnet das Host-Menü, man spielt automatisch nicht mit) → Teams, Szenarien, Features, PvP
 einstellen → `/createworld` (Plains-Spawn mit Portal + Spawnlöchern) → `/worlds` zum Nachschauen (Nether-Portal checken)
 → `/announce 20:00 [Text]`.
+**Latejoin:** In der Schutzzeit können Spieler selbst `/latejoin` machen – mit Teamauswahl (Spielerzahl pro Team).
+Host: `/latejoin <Spieler>` öffnet dieselbe Auswahl.
 **Runde:** `/start 60` · `/border 300 [Sekunden]` · `/finale 30` (ab 4–6 Spielern).
 **Specen & Support:** `/gm 3` · `/tp` · `/freeze <Spieler>` (Ausloggen = Ban) · `/latejoin <Spieler> [Team]` ·
 `/setkit <Spieler>` · `/teamchange <Spieler> <Team>` (bis Ende der Schutzzeit) · `/remove <Spieler>` ·
@@ -69,7 +71,15 @@ Umschaltbar **1.8.9-PvP** ↔ **26.3-PvP**: kein Angriffs-Cooldown, kein Sweep, 
 alte Notch-Äpfel, 1.8-Waffenschaden, Schilde an/aus. Kits nutzen 26.x-Items (Netherite, Speer, Wind Charges …).
 
 ## Szenarien
-CutClean · BowLess · Triple Ores · Timebomb · Xtra Apples · Timber · RodLess · Backpack (`/backpack`)
+CutClean · BowLess · Triple Ores · Timebomb · Xtra Apples · Timber · RodLess · Backpack (`/backpack`) · Diamondless ·
+Goldless · **Netheriteless** · **Shieldless** · **Maceless** · **Absorptionless** · **Fireless** · **Hastey Boys**
+
+## Kits & Verzauberungen
+- **ODV-Standardkit** wie bei Mega-Events: Dia-Axt, Dia-Spitzhacke, 64 Steak, 3 Bücher, Zaubertisch, Amboss, 32 Holz,
+  Wasser- & Lavaeimer, 64 Lapis, 16 Äpfel.
+- **Eigene Kits**: Items ins Inventar legen → `/odv kit create <Name>`; auswählen im Host-Menü (Kits) oder `/odv kit use <Name>`.
+- **Verzauberungen**: im Host-Menü pro Verzauberung Max-Level oder verboten (mit ODV-Preset). Gilt für Zaubertisch,
+  Amboss, Dorfbewohner und Truhen-Loot (`enchantments` in der config.yml).
 
 ## 10 neue Features
 | Feature | Was passiert |
@@ -140,4 +150,4 @@ Content, Premium, Spieler – alles in `plugins/ODVMeetup/ranks.yml` anpassbar. 
 | `/odv announce <Text>` · `/odv changelog post` | Chat + Discord-Webhook |
 
 ## Selbst bauen
-`mvn package` (JDK 21+) → `target/ODVMeetup-3.4.0.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.
+`mvn package` (JDK 21+) → `target/ODVMeetup-3.5.0.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.

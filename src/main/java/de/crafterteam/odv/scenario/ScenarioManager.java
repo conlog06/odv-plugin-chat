@@ -135,6 +135,11 @@ public class ScenarioManager implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDrop(BlockDropItemEvent e) {
         Material type = e.getBlockState().getType();
+        if (on(Scenario.NETHERITELESS) && type == Material.ANCIENT_DEBRIS) {
+            e.getItems().forEach(Item::remove);
+            e.getItems().clear();
+            return;
+        }
         if (on(Scenario.DIAMONDLESS) && (type == Material.DIAMOND_ORE || type == Material.DEEPSLATE_DIAMOND_ORE)) {
             e.getItems().forEach(Item::remove);
             e.getItems().clear();
@@ -201,8 +206,61 @@ public class ScenarioManager implements Listener {
         ItemStack r = e.getInventory().getResult();
         if (r == null) return;
         Material m = r.getType();
-        if ((s().has(Scenario.BOWLESS) && (m == Material.BOW || m == Material.CROSSBOW)) || (s().has(Scenario.RODLESS) && m == Material.FISHING_ROD)) {
+        if (forbidden(m)) {
             e.getInventory().setResult(null);
+            return;
+        }
+        if (s().has(Scenario.HASTEY_BOYS) && isTool(m)) {
+            ItemStack h = r.clone();
+            h.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.EFFICIENCY, 3);
+            h.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.UNBREAKING, 3);
+            e.getInventory().setResult(h);
+        }
+    }
+
+    /** Durch Szenarien verbotene Items (Crafting, Kits). */
+    public boolean forbidden(Material m) {
+        String n = m.name();
+        return (s().has(Scenario.BOWLESS) && (m == Material.BOW || m == Material.CROSSBOW))
+                || (s().has(Scenario.RODLESS) && m == Material.FISHING_ROD)
+                || (s().has(Scenario.SHIELDLESS) && m == Material.SHIELD)
+                || (s().has(Scenario.MACELESS) && m == Material.MACE)
+                || (s().has(Scenario.NETHERITELESS) && (n.startsWith("NETHERITE_") && m != Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE || m == Material.NETHERITE_SCRAP));
+    }
+
+    private static boolean isTool(Material m) {
+        String n = m.name();
+        return n.endsWith("_PICKAXE") || n.endsWith("_AXE") || n.endsWith("_SHOVEL") || n.endsWith("_HOE");
+    }
+
+    @EventHandler
+    public void onSmith(org.bukkit.event.inventory.PrepareSmithingEvent e) {
+        ItemStack r = e.getResult();
+        if (r != null && forbidden(r.getType())) e.setResult(null);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onAbsorb(org.bukkit.event.entity.EntityPotionEffectEvent e) {
+        if (!on(Scenario.ABSORPTIONLESS) || !(e.getEntity() instanceof Player)) return;
+        if (e.getNewEffect() != null && e.getNewEffect().getType().equals(org.bukkit.potion.PotionEffectType.ABSORPTION)
+                && e.getCause() == org.bukkit.event.entity.EntityPotionEffectEvent.Cause.FOOD) e.setCancelled(true);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onFire(org.bukkit.event.entity.EntityDamageEvent e) {
+        if (!on(Scenario.FIRELESS) || !(e.getEntity() instanceof Player)) return;
+        switch (e.getCause()) {
+            case FIRE, FIRE_TICK, LAVA, HOT_FLOOR, CAMPFIRE -> e.setCancelled(true);
+            default -> {
+            }
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onShield(org.bukkit.event.player.PlayerInteractEvent e) {
+        if (e.getItem() != null && on(Scenario.SHIELDLESS) && e.getItem().getType() == Material.SHIELD) {
+            e.setCancelled(true);
+            Txt.actionBar(e.getPlayer(), "§cShieldless ist aktiv!");
         }
     }
 

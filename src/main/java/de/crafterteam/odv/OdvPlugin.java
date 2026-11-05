@@ -113,7 +113,7 @@ public class OdvPlugin extends JavaPlugin {
                 pc.setTabCompleter(punish);
             }
         }
-        for (Listener l : new Listener[]{punish, host, admin, new GameListener(this), combat, scenarios, features, antiXray, wand}) {
+        for (Listener l : new Listener[]{new de.crafterteam.odv.feature.EnchantLimiter(this), punish, host, admin, new GameListener(this), combat, scenarios, features, antiXray, wand}) {
             Bukkit.getPluginManager().registerEvents(l, this);
         }
         game.applyWorldSettings();

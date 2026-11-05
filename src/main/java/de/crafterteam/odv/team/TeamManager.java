@@ -126,6 +126,14 @@ public class TeamManager {
         return best;
     }
 
+    /** Team-Nr. n anzeigen, ohne es anzulegen (für Menüs). */
+    public MTeam peek(int n) {
+        MTeam t = byNumber(n);
+        if (t != null) return t;
+        int c = (n - 1) % 16;
+        return new MTeam(n, NAMES[c] + (n - 1 >= 16 ? " " + ((n - 1) / 16 + 1) : ""), COLORS[c], WOOL[c]);
+    }
+
     /** Team nach Nummer oder Name (z. B. "3" oder "Rot"). */
     public MTeam find(String in) {
         try {

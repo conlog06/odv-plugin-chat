@@ -148,9 +148,15 @@ public class SpawnManager {
             if (plugin.game().getState().isLobby()) for (Player o : Bukkit.getOnlinePlayers()) plugin.game().toLobby(o);
             msg(actor, "§a✔ Arena fertig! §7Spawn mit Netherportal bei §f" + center.getBlockX() + " / " + center.getBlockZ()
                     + "§7, Lobby schwebt darüber.");
-            msg(actor, "§7Map wird jetzt vorgeneriert – danach §a/odv start§7.");
-            ChunkPregen.start(plugin, w, center.getBlockX(), center.getBlockZ(), s().borderInitial / 2 + 48, actor instanceof Player p ? p : null);
-            if (done != null) done.run();
+            Runnable rest = () -> {
+                msg(actor, "§7Map wird jetzt vorgeneriert – danach §a/odv start§7.");
+                ChunkPregen.start(plugin, w, center.getBlockX(), center.getBlockZ(), s().borderInitial / 2 + 48, actor instanceof Player p ? p : null);
+                if (done != null) done.run();
+            };
+            if (s().spawnPregen > 0) {
+                msg(actor, "§7Baue §e" + s().spawnPregen + " §7Team-Spawns vor ...");
+                if (!generate(s().spawnPregen, actor, rest)) rest.run();
+            } else rest.run();
         });
     }
 
@@ -252,45 +258,70 @@ public class SpawnManager {
     }
 
     /**
-     * Mittel-Spawn: großflächige, flache Plains-Ebene.
-     * 1. Plains über das Biom-Rauschen suchen (generiert keine Chunks)
-     * 2. Umgebung muss auch Plains sein (8 Richtungen, 80 Blöcke)
-     * 3. Im Umkreis den flachsten Punkt nehmen (keine Hügel, kein Wasser, keine Bäume)
+     * Mittel-Spawn: großflächige, flache Plains-Ebene (möglichst nahe 0/0).
+     * Stufe 1: Plains über das Biom-Rauschen finden, flachsten Punkt in der Umgebung nehmen.
+     * Stufe 2: zufällige Stichproben wie früher (Plains + flach).
+     * Stufe 3: irgendein trockener Plains-Punkt.
      */
     private Location findCenterSpot(World w) {
         Location base = w.getSpawnLocation();
         Location best = null;
         double bestScore = Double.MAX_VALUE;
         int candidates = 0;
-        for (int i = 0; i < 30 && candidates < 5; i++) {
-            double a = random.nextDouble() * Math.PI * 2;
-            int dist = i == 0 ? 0 : 400 + i * 300;
-            Location origin = base.clone().add(Math.cos(a) * dist, 0, Math.sin(a) * dist);
-            var res = w.locateNearestBiome(origin, 1200, 32, 64, Biome.PLAINS, Biome.SUNFLOWER_PLAINS);
-            if (res == null) continue;
-            int x = res.getLocation().getBlockX(), z = res.getLocation().getBlockZ();
-            int ok = 0;
-            for (int k = 0; k < 8; k++) {
-                double ang = Math.PI / 4 * k;
-                if (plainsNoise(w, x + (int) (Math.cos(ang) * 80), z + (int) (Math.sin(ang) * 80))) ok++;
-            }
-            if (ok < 7) continue;
-            candidates++;
-            for (int ox = -32; ox <= 32; ox += 32)
-                for (int oz = -32; oz <= 32; oz += 32) {
-                    double sc = flatness(w, x + ox, z + oz);
-                    if (sc < bestScore) {
-                        Location g = goodSpot(w, x + ox, z + oz, true, true);
+        try {
+            for (int i = 0; i < 24 && candidates < 8 && bestScore > 6; i++) {
+                double a = random.nextDouble() * Math.PI * 2;
+                int dist = i == 0 ? 0 : 250 + i * 200;
+                Location origin = base.clone().add(Math.cos(a) * dist, 0, Math.sin(a) * dist);
+                origin.setY(w.getSeaLevel() + 4);
+                var res = w.locateNearestBiome(origin, 1000, 32, 64, Biome.PLAINS, Biome.SUNFLOWER_PLAINS);
+                if (res == null) continue;
+                int x = res.getLocation().getBlockX(), z = res.getLocation().getBlockZ();
+                int ok = 0;
+                for (int k = 0; k < 8; k++) {
+                    double ang = Math.PI / 4 * k;
+                    if (plainsNoise(w, x + (int) (Math.cos(ang) * 64), z + (int) (Math.sin(ang) * 64))) ok++;
+                }
+                if (ok < 5) continue; // nur ein Plains-Zipfel
+                candidates++;
+                for (int ox = -32; ox <= 32; ox += 32)
+                    for (int oz = -32; oz <= 32; oz += 32) {
+                        int px = x + ox, pz = z + oz;
+                        if (!isPlains(w, px, pz)) continue;
+                        double sc = flatness(w, px, pz) + Math.hypot(px - base.getX(), pz - base.getZ()) / 400.0; // nah am Weltspawn bevorzugt
+                        if (sc >= bestScore) continue;
+                        Location g = goodSpot(w, px, pz, true, false);
                         if (g != null) {
                             bestScore = sc;
                             best = g;
                         }
                     }
-                }
-            if (bestScore < 3) break; // schon sehr flach
+            }
+        } catch (Throwable t) {
+            plugin.getLogger().warning("Biom-Suche fehlgeschlagen (" + t.getClass().getSimpleName() + ") - nutze Stichproben.");
         }
-        if (best != null) return best;
-        plugin.getLogger().warning("Keine flache Plains-Flaeche gefunden - nutze Weltspawn.");
+        if (best != null) {
+            plugin.getLogger().info("Plains-Spawn gefunden bei " + best.getBlockX() + " / " + best.getBlockZ() + " (Flachheit " + Math.round(bestScore) + ")");
+            return best;
+        }
+        // Stufe 2 + 3: Stichproben
+        Location loose = null;
+        for (int i = 0; i < 500; i++) {
+            int r = 64 + i * 4;
+            double a = random.nextDouble() * Math.PI * 2;
+            int x = base.getBlockX() + (int) (Math.cos(a) * r), z = base.getBlockZ() + (int) (Math.sin(a) * r);
+            Location g = goodSpot(w, x, z, true, true);
+            if (g != null && flatness(w, x, z) < 40) {
+                plugin.getLogger().info("Plains-Spawn (Stichprobe) bei " + x + " / " + z);
+                return g;
+            }
+            if (loose == null) loose = goodSpot(w, x, z, true, false);
+        }
+        if (loose != null) {
+            plugin.getLogger().info("Plains-Spawn (locker) bei " + loose.getBlockX() + " / " + loose.getBlockZ());
+            return loose;
+        }
+        plugin.getLogger().warning("Keine Plains-Flaeche gefunden - nutze Weltspawn.");
         int y = ground(w, base.getBlockX(), base.getBlockZ());
         return new Location(w, base.getBlockX() + 0.5, y + 1, base.getBlockZ() + 0.5);
     }
@@ -534,23 +565,29 @@ public class SpawnManager {
     public static double flatness(World w, int x, int z) {
         int sea = w.getSeaLevel();
         int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
-        double sum = 0, sq = 0;
-        int n = 0;
-        for (int dx = -16; dx <= 16; dx += 4)
-            for (int dz = -16; dz <= 16; dz += 4) {
+        double sum = 0, sq = 0, penalty = 0;
+        int n = 0, water = 0;
+        for (int dx = -15; dx <= 15; dx += 5)
+            for (int dz = -15; dz <= 15; dz += 5) {
                 int gy = ground(w, x + dx, z + dz);
                 Material m = w.getBlockAt(x + dx, gy, z + dz).getType();
-                if (m == Material.WATER || m == Material.LAVA || Tag.LOGS.isTagged(m)) return Double.MAX_VALUE;
+                if (m == Material.WATER || m == Material.LAVA) {
+                    if (++water > 2) return Double.MAX_VALUE;
+                    penalty += 6;
+                    continue;
+                }
+                if (Tag.LOGS.isTagged(m) || Tag.LEAVES.isTagged(m)) penalty += 3;
                 min = Math.min(min, gy);
                 max = Math.max(max, gy);
                 sum += gy;
                 sq += (double) gy * gy;
                 n++;
             }
+        if (n == 0) return Double.MAX_VALUE;
         double avg = sum / n;
-        if (avg < sea || avg > sea + 14 || max - min > 5) return Double.MAX_VALUE;
+        if (avg < sea - 1 || avg > sea + 22 || max - min > 9) return Double.MAX_VALUE;
         double variance = sq / n - avg * avg;
-        return (max - min) * 4 + variance;
+        return (max - min) * 3 + variance + penalty;
     }
 
     private static boolean tooClose(Location l, List<Location> others, double dist) {

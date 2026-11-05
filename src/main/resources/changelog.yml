@@ -1,6 +1,18 @@
 # Wird mit /changelog angezeigt und mit /odv changelog post an Discord geschickt.
 # Neueste Version oben. Eigene Einträge einfach ergänzen.
 versions:
+  - version: "3.5.0"
+    date: "06.11.2026"
+    changes:
+      - "ODV-Standardkit wie bei Mega-Events (Dia-Axt/-Spitzhacke, Steak, Bücher, Zaubertisch, Amboss, Holz, Eimer, Lapis, Äpfel)"
+      - "Eigene Kits: /odv kit create <Name>, Kit-Auswahl im Host-Menü"
+      - "Plains-Suche repariert: mehrstufig mit Fallback, möglichst nah an 0/0"
+      - "50 Team-Spawns werden beim Erstellen der Welt vorgebaut und gleichmäßig verteilt genutzt"
+      - "Erlaubte Verzauberungen einstellbar (Host-Menü, inkl. ODV-Preset) – gilt für Zaubertisch, Amboss, Dorfbewohner und Loot"
+      - "Neue Szenarien: Netheriteless, Shieldless, Maceless, Absorptionless, Fireless, Hastey Boys"
+      - "/latejoin in der Schutzzeit selbst möglich – mit Teamauswahl und Spielerzahl pro Team"
+      - "Spieler-Rang mit grauem Farbverlauf"
+      - "Bansystem und Strikesystem einzeln an-/abschaltbar"
   - version: "3.4.0"
     date: "05.11.2026"
     changes:
