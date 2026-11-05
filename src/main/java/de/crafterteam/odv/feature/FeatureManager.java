@@ -349,6 +349,12 @@ public class FeatureManager implements Listener {
         if (random.nextInt(3) == 0) l.add(book(random.nextBoolean() ? Enchantment.PROTECTION : Enchantment.SHARPNESS, 3));
         if (random.nextInt(10) == 0) l.add(new ItemStack(Material.MACE));
         if (random.nextInt(12) == 0) l.add(new ItemStack(Material.TOTEM_OF_UNDYING));
+        if (random.nextInt(4) == 0) l.add(new ItemStack(Material.BREEZE_ROD, 2));
+        if (random.nextInt(5) == 0) l.add(new ItemStack(Material.COPPER_HELMET));
+        if (random.nextInt(15) == 0) { // Jackpot: Ghast-Taxi (26.x)
+            l.add(new ItemStack(Material.HAPPY_GHAST_SPAWN_EGG));
+            l.add(new ItemStack(Material.WHITE_HARNESS));
+        }
         return l;
     }
 

@@ -53,14 +53,14 @@ public class GameManager {
 
     // IDs der Lobby-Items
     public static final String I_TEAMS = "teams", I_STATS = "stats", I_SETUP = "setup", I_START = "start",
-            I_PLAY = "play", I_PRACTICE = "practice", I_SCENARIOS = "scenarios";
+            I_PLAY = "play", I_PRACTICE = "practice", I_SCENARIOS = "scenarios", I_VOTE = "vote", I_HOST = "host";
 
     private final OdvPlugin plugin;
     private GameState state = GameState.LOBBY;
     private int countdown, phase, elapsed, shrinkTotal;
     private boolean forced, shrinking, testRound, showdownDone;
     private UUID host;
-    private boolean displayErrorLogged, barShown, netherClosed;
+    private boolean displayErrorLogged, barShown, netherClosed, finishing;
     private int displayTick;
     private String date;
     private final Map<UUID, String> lastTab = new HashMap<>(), lastListName = new HashMap<>();
@@ -95,7 +95,12 @@ public class GameManager {
     public UUID getHost() { return host; }
 
     public void setHost(UUID id) {
+        UUID old = host;
         host = id;
+        for (UUID u : new UUID[]{old, id}) {
+            Player p = u == null ? null : Bukkit.getPlayer(u);
+            if (p != null && state.isLobby() && !plugin.practice().isIn(p)) giveLobbyItems(p);
+        }
     }
 
     /** Ist der Spieler (lebend, nicht Practice) in der laufenden Runde? */
@@ -105,7 +110,9 @@ public class GameManager {
 
     public List<Player> candidates() {
         List<Player> list = new ArrayList<>();
-        for (Player p : Bukkit.getOnlinePlayers()) if (p.hasPermission("odv.play") && !optedOut.contains(p.getUniqueId())) list.add(p);
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (p.hasPermission("odv.play") && !optedOut.contains(p.getUniqueId()) && !plugin.admin().isVanished(p)) list.add(p);
+        }
         return list;
     }
 
@@ -191,6 +198,7 @@ public class GameManager {
 
     private void tickRunning() {
         limitSpectators();
+        plugin.events().tick(elapsed, state == GameState.RUNNING);
         for (UUID id : new ArrayList<>(disconnected.keySet())) {
             int left = disconnected.get(id) - 1;
             if (left > 0) {
@@ -208,7 +216,7 @@ public class GameManager {
             if (left == 60) broadcast("§7Die Border schrumpft in §e1 Minute§7.");
             if (left <= 0) startShrink(s().shrinkDuration);
         }
-        if (s().has(Feature.SHOWDOWN) && !showdownDone && state == GameState.RUNNING && elapsed >= s().timeLimit * 60) showdown();
+        if ((s().has(Feature.SHOWDOWN) || s().has(Feature.END_FINALE)) && !showdownDone && state == GameState.RUNNING && elapsed >= s().timeLimit * 60) showdown();
     }
 
     private void startShrink(int seconds) {
@@ -238,6 +246,11 @@ public class GameManager {
     /** Feature „Showdown": Zeitlimit erreicht -> alle in die Mitte. */
     private void showdown() {
         showdownDone = true;
+        if (plugin.events().startEndFinale()) {
+            shrinking = true;
+            closeNether("End-Finale");
+            return;
+        }
         World w = arena().getWorld();
         Location c = arena().getCenter();
         if (w == null || c == null) return;
@@ -298,6 +311,7 @@ public class GameManager {
         state = GameState.PREPARING;
         forced = false;
         plugin.teams().finalizeTeams(players);
+        plugin.votes().apply();
         testRound = plugin.teams().getTeams().size() < 2;
         applyWorldSettings();
         int needed = plugin.teams().getTeams().size();
@@ -452,11 +466,22 @@ public class GameManager {
     private void checkWin() {
         if (!state.isIngame()) return;
         List<MTeam> left = aliveTeams();
-        if (left.isEmpty() || (!testRound && left.size() == 1)) endGame(left.isEmpty() ? null : left.get(0));
+        if (left.isEmpty() || (!testRound && left.size() == 1)) {
+            MTeam winner = left.isEmpty() ? null : left.get(0);
+            if (winner != null && !finishing && plugin.events().slowmo(() -> {
+                if (state.isIngame()) endGame(winner);
+            })) {
+                finishing = true; // Zeitlupe läuft, danach Sieg
+                return;
+            }
+            if (!finishing || winner == null) endGame(winner);
+        }
     }
 
     private void endGame(MTeam winner) {
         state = GameState.ENDING;
+        finishing = false;
+        plugin.events().podium(winner, topKillers(3));
         String title = winner == null ? "§7Unentschieden" : s().isSolo() ? "§6" + winner.getName() + " §ahat gewonnen!"
                 : "§7Team " + winner.getDisplayName() + " §ahat gewonnen!";
         if (winner != null) for (UUID u : winner.getMembers()) plugin.stats().add(u, "wins");
@@ -516,7 +541,8 @@ public class GameManager {
 
     public void resetToLobby() {
         state = GameState.LOBBY;
-        forced = testRound = shrinking = showdownDone = netherClosed = false;
+        forced = testRound = shrinking = showdownDone = netherClosed = finishing = false;
+        plugin.events().reset();
         alive.clear();
         kills.clear();
         deathLocations.clear();
@@ -526,6 +552,8 @@ public class GameManager {
         elapsed = 0;
         plugin.teams().reset();
         plugin.scenarios().reset();
+        s().resetActive();
+        plugin.votes().reset();
         plugin.features().reset();
         plugin.holograms().remove("spawns");
         applyWorldSettings();
@@ -602,6 +630,7 @@ public class GameManager {
         }
         optedOut.add(id);
         plugin.teams().leave(id);
+        plugin.votes().remove(id);
         if (state.isIngame() && alive.contains(id)) eliminate(id, null, p.getLocation(), "hat aufgegeben");
         Txt.send(p, s().prefix + "§7Du schaust zu. §8(/odv join zum Mitspielen)");
         if (state.isLobby()) giveLobbyItems(p);
@@ -626,6 +655,7 @@ public class GameManager {
         w.setPVP(true);
         // Ressourcen sparen: in der Lobby keine Mobs in der Arena-Welt
         w.setGameRule(GameRules.SPAWN_MOBS, state.isIngame());
+        if (!state.isIngame()) w.setTime(6000);
         plugin.combat().prepareAll();
     }
 
@@ -659,10 +689,16 @@ public class GameManager {
         if (s().has(Feature.PRACTICE) && arena().getPractice() != null) {
             inv.setItem(2, it.menu(Material.DIAMOND_SWORD, I_PRACTICE, "§c§lPractice §8(Rechtsklick)", "§7Kämpfen bis die Runde startet"));
         }
-        inv.setItem(3, it.menu(Material.PAPER, I_SCENARIOS, "§e§lSzenarien §8(Rechtsklick)", "§7Was ist diese Runde aktiv?"));
+        if (plugin.votes().active()) {
+            inv.setItem(3, it.menu(Material.WRITABLE_BOOK, I_VOTE, "§d§lAbstimmung §8(Rechtsklick)", "§7Stimme für Szenarien & Features ab"));
+        } else {
+            inv.setItem(3, it.menu(Material.PAPER, I_SCENARIOS, "§e§lSzenarien §8(Rechtsklick)", "§7Was ist diese Runde aktiv?"));
+        }
         if (p.hasPermission("odv.admin")) {
-            inv.setItem(4, it.menu(Material.BEACON, I_SETUP, "§c§lSetup §8(Rechtsklick)", "§7Alle Einstellungen"));
-            inv.setItem(5, it.menu(Material.EMERALD, I_START, "§a§lRunde starten §8(Rechtsklick)", "§7Startet in 10 Sekunden"));
+            inv.setItem(4, it.menu(Material.NETHER_STAR, I_SETUP, "§c§lLeitung §8(Rechtsklick)", "§7Alle Einstellungen: Arena, Spawns,", "§7Kits, Ränge, Speicher, Szenarien"));
+            inv.setItem(5, it.menu(Material.GOLDEN_HELMET, I_HOST, "§a§lHost-Menü §8(Rechtsklick)", "§7Start, Modus, Teams, Szenarien"));
+        } else if (p.hasPermission("odv.host") || p.getUniqueId().equals(host)) {
+            inv.setItem(4, it.menu(Material.GOLDEN_HELMET, I_HOST, "§a§lHost-Menü §8(Rechtsklick)", "§7Start, Modus, Teams, Szenarien"));
         }
         inv.setItem(7, it.menu(Material.BOOK, I_STATS, "§e§lStatistik §8(Rechtsklick)", "§7Siege, Kills, K/D"));
         inv.setItem(8, it.menu(watching ? Material.GRAY_DYE : Material.LIME_DYE, I_PLAY,
@@ -759,7 +795,7 @@ public class GameManager {
         else if (state == GameState.RUNNING && !shrinking) bar("§7Border schrumpft in §e" + Txt.time(s().shrinkAfter - elapsed),
                 (s().shrinkAfter - elapsed) / (float) Math.max(1, s().shrinkAfter - s().grace), BossBar.Color.BLUE);
         else if (state == GameState.RUNNING) bar("§cBorder: §f" + border + " §8┃ §7Lebende: §a" + alive.size()
-                + (s().has(Feature.SHOWDOWN) && !showdownDone ? " §8┃ §4Showdown in §f" + Txt.time(s().timeLimit * 60 - elapsed) : "")
+                + ((s().has(Feature.SHOWDOWN) || s().has(Feature.END_FINALE)) && !showdownDone ? " §8┃ §4" + (s().has(Feature.END_FINALE) ? "End-Finale" : "Showdown") + " in §f" + Txt.time(s().timeLimit * 60 - elapsed) : "")
                 + (netherClosed ? " §8┃ §cNether zu" : ""),
                 (float) Math.min(1, (border - s().borderFinal) / (double) Math.max(1, s().borderInitial - s().borderFinal)), BossBar.Color.RED);
         boolean barVisible = state == GameState.STARTING || state.isIngame();
@@ -888,7 +924,7 @@ public class GameManager {
                 lines.add("  ");
                 for (int i = 0; i < 3; i++) {
                     if (i < top.size()) lines.add("§c" + top.get(i).getValue() + " §8- §e" + plugin.stats().name(top.get(i).getKey()));
-                    else lines.add("§80 §8- §8Unknown");
+                    else lines.add("§8- §7-");
                 }
             }
             lines.add("   ");

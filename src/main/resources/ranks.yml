@@ -1,82 +1,105 @@
 # ==============================================================
 #  Rangsystem – Prefix in Chat, Tab und über dem Kopf (Lobby)
-#  Rang vergeben:  /rank set <Spieler> <rang>   (auch aus der Konsole)
+#  Rang vergeben:  /rank set <Spieler> <rang>
+#
+#  prefix: MiniMessage-Format (Farbverläufe!), z. B.
+#          "<gradient:#7A0000:#FF3B3B><b>OWNER</b></gradient> <dark_gray>┃</dark_gray> "
+#          Alte &-Farbcodes gehen weiterhin.
+#  name-color: Farbe des Namens (#RRGGBB oder red, gold, ...)
 #  weight: höher = weiter oben im Tab und in der Teamliste
 #  staff: true = erscheint in /teamliste, darf Staff-Chat (#Nachricht)
-#  color: black, dark_blue, dark_green, dark_aqua, dark_red, dark_purple, gold, gray,
-#         dark_gray, blue, green, aqua, red, light_purple, yellow, white
+#  protected: true = nur über die Konsole vergebbar – oder von jemandem,
+#             der selbst einen geschützten Rang mit mindestens diesem Gewicht hat
 # ==============================================================
 
+format: 2
 default-rank: spieler
 
 ranks:
   owner:
     name: "Owner"
-    prefix: "&4&lOwner &8| &4"
-    color: dark_red
+    prefix: "<gradient:#7A0000:#FF3B3B><b>OWNER</b></gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#FF5555"
     weight: 100
     staff: true
-    permissions: [odv.admin, odv.rank, odv.staff, odv.mute, odv.bypass]
+    protected: true
+    permissions: [odv.admin, odv.host, odv.rank, odv.staff, odv.mute, odv.bypass, odv.cmd.*]
+  leitung:
+    name: "Leitung"
+    prefix: "<gradient:#B30000:#FF6A00><b>LEITUNG</b></gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#FF7B3B"
+    weight: 95
+    staff: true
+    protected: true
+    permissions: [odv.admin, odv.host, odv.rank, odv.staff, odv.mute, odv.bypass, odv.cmd.*]
   admin:
     name: "Administrator"
-    prefix: "&c&lAdmin &8| &c"
-    color: red
+    prefix: "<gradient:#E02424:#FF8A8A><b>ADMIN</b></gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#FF6B6B"
     weight: 90
     staff: true
-    permissions: [odv.admin, odv.rank, odv.staff, odv.mute, odv.bypass]
+    protected: true
+    permissions: [odv.admin, odv.host, odv.rank, odv.staff, odv.mute, odv.bypass, odv.cmd.*]
   srdev:
     name: "SrDeveloper"
-    prefix: "&b&lSrDev &8| &b"
-    color: aqua
+    prefix: "<gradient:#0077B6:#48CAE4><b>SR-DEV</b></gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#48CAE4"
     weight: 80
     staff: true
-    permissions: [odv.admin, odv.staff, odv.bypass]
+    permissions: [odv.admin, odv.host, odv.staff, odv.bypass, odv.cmd.*]
   dev:
     name: "Developer"
-    prefix: "&3&lDev &8| &3"
-    color: dark_aqua
+    prefix: "<gradient:#00B4D8:#ADE8F4><b>DEV</b></gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#7FDBEF"
     weight: 70
     staff: true
-    permissions: [odv.staff, odv.bypass]
+    permissions: [odv.staff, odv.bypass, odv.cmd.gamemode, odv.cmd.tp, odv.cmd.fly, odv.cmd.vanish]
   srmod:
     name: "SrModerator"
-    prefix: "&6&lSrMod &8| &6"
-    color: gold
+    prefix: "<gradient:#E85D04:#FFBA08><b>SR-MOD</b></gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#FFA62B"
     weight: 60
     staff: true
-    permissions: [odv.staff, odv.mute, odv.bypass]
+    permissions: [odv.host, odv.staff, odv.mute, odv.bypass, odv.cmd.invsee, odv.cmd.ecsee, odv.cmd.armorsee, odv.cmd.tp, odv.cmd.vanish, odv.cmd.gamemode]
   mod:
     name: "Moderator"
-    prefix: "&e&lMod &8| &e"
-    color: yellow
+    prefix: "<gradient:#F48C06:#FFD166><b>MOD</b></gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#FFD166"
     weight: 50
     staff: true
-    permissions: [odv.staff, odv.mute, odv.bypass]
+    permissions: [odv.staff, odv.mute, odv.bypass, odv.cmd.invsee, odv.cmd.armorsee, odv.cmd.tp, odv.cmd.vanish]
   builder:
     name: "Builder"
-    prefix: "&2&lBuilder &8| &2"
-    color: dark_green
+    prefix: "<gradient:#2D6A4F:#95D5B2><b>BUILDER</b></gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#74C69D"
     weight: 40
     staff: true
-    permissions: [odv.staff, odv.bypass]
+    permissions: [odv.staff, odv.bypass, odv.cmd.gamemode, odv.cmd.fly, odv.cmd.give, odv.cmd.speed]
   content:
     name: "Content"
-    prefix: "&d&lContent &8| &d"
-    color: light_purple
+    prefix: "<gradient:#9D4EDD:#E0AAFF><b>CONTENT</b></gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#D29BFF"
     weight: 30
     staff: true
-    permissions: [odv.staff]
+    permissions: [odv.staff, odv.host]
+  host:
+    name: "Host"
+    prefix: "<gradient:#38B000:#CCFF33><b>HOST</b></gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#9EF01A"
+    weight: 20
+    staff: false
+    permissions: [odv.host, odv.bypass.slowmode]
   premium:
     name: "Premium"
-    prefix: "&6Premium &8| &6"
-    color: gold
+    prefix: "<gradient:#FFB703:#FFE066>PREMIUM</gradient> <dark_gray>┃</dark_gray> "
+    name-color: "#FFD43B"
     weight: 10
     staff: false
     permissions: [odv.bypass.slowmode]
   spieler:
     name: "Spieler"
-    prefix: "&7"
-    color: gray
+    prefix: ""
+    name-color: "#AAAAAA"
     weight: 0
     staff: false
     permissions: []

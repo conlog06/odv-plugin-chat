@@ -16,7 +16,21 @@ import java.util.List;
 /** Texte mit §-Farbcodes -> Adventure-Components. */
 public final class Txt {
 
-    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
+    /** §-Codes inkl. Hex-Farben (§x§R§R§G§G§B§B) – damit Farbverläufe überall funktionieren. */
+    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.builder()
+            .character('§').hexColors().useUnusualXRepeatedCharacterHexFormat().build();
+    private static final net.kyori.adventure.text.minimessage.MiniMessage MINI = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage();
+
+    /** MiniMessage (&lt;gradient&gt;…) oder alte &amp;-Codes -> Component. */
+    public static Component rich(String text) {
+        if (text == null || text.isEmpty()) return Component.empty();
+        if (text.indexOf('<') >= 0 && text.indexOf('>') > text.indexOf('<')) return MINI.deserialize(text);
+        return c(color(text));
+    }
+
+    public static String legacy(Component c) {
+        return LEGACY.serialize(c);
+    }
 
     private Txt() {
     }

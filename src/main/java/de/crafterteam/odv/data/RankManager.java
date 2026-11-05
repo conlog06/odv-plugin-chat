@@ -2,7 +2,9 @@ package de.crafterteam.odv.data;
 
 import de.crafterteam.odv.OdvPlugin;
 import de.crafterteam.odv.util.Txt;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
@@ -30,12 +32,11 @@ import java.util.function.Consumer;
  */
 public class RankManager {
 
-    public record Rank(String id, String name, String prefix, NamedTextColor color, int weight, boolean staff, List<String> permissions) {
-        /** Farbcode passend zur Rangfarbe (für Namen). */
+    public record Rank(String id, String name, String prefix, String nameColorCode, NamedTextColor color, int weight,
+                       boolean staff, boolean protect, List<String> permissions) {
+        /** Farbcode für den Namen (auch Hex). */
         public String nameColor() {
-            String p = prefix;
-            int i = p.lastIndexOf('§');
-            return i >= 0 && i + 1 < p.length() ? p.substring(i, i + 2) : "§7";
+            return nameColorCode;
         }
     }
 
@@ -55,28 +56,72 @@ public class RankManager {
 
     public void load() {
         File f = new File(plugin.getDataFolder(), "ranks.yml");
+        if (f.isFile() && !YamlConfiguration.loadConfiguration(f).contains("format")) {
+            // altes Format (3.1) sichern und neues mit Farbverläufen anlegen – Zuordnungen bleiben in der Datenbank
+            f.renameTo(new File(plugin.getDataFolder(), "ranks-alt-3.1.yml"));
+            plugin.getLogger().info("ranks.yml auf das neue Format (Farbverlaeufe) umgestellt, alte Datei: ranks-alt-3.1.yml");
+        }
         if (!f.isFile()) plugin.saveResource("ranks.yml", false);
         YamlConfiguration y = YamlConfiguration.loadConfiguration(f);
         ranks.clear();
         ConfigurationSection sec = y.getConfigurationSection("ranks");
         if (sec != null) {
-            for (String id : sec.getKeys(false)) {
-                ConfigurationSection r = sec.getConfigurationSection(id);
+            for (String rawId : sec.getKeys(false)) {
+                ConfigurationSection r = sec.getConfigurationSection(rawId);
                 if (r == null) continue;
-                NamedTextColor color = NamedTextColor.NAMES.value(r.getString("color", "gray").toLowerCase(Locale.ROOT));
-                ranks.put(id.toLowerCase(Locale.ROOT), new Rank(id.toLowerCase(Locale.ROOT), r.getString("name", id), Txt.color(r.getString("prefix", "&7")),
-                        color == null ? NamedTextColor.GRAY : color, r.getInt("weight", 0), r.getBoolean("staff", false), r.getStringList("permissions")));
+                String id = rawId.toLowerCase(Locale.ROOT);
+                String prefix = Txt.legacy(Txt.rich(r.getString("prefix", "")));
+                TextColor nc = parseColor(r.getString("name-color", r.getString("color", "gray")));
+                String nameCode = Txt.legacy(Component.text("x", nc));
+                nameCode = nameCode.substring(0, nameCode.length() - 1);
+                boolean protect = r.getBoolean("protected", id.equals("owner") || id.equals("leitung") || id.equals("admin"));
+                ranks.put(id, new Rank(id, r.getString("name", rawId), prefix, nameCode, NamedTextColor.nearestTo(nc), r.getInt("weight", 0),
+                        r.getBoolean("staff", false), protect, r.getStringList("permissions")));
             }
         }
         defaultRank = y.getString("default-rank", "spieler").toLowerCase(Locale.ROOT);
         if (!ranks.containsKey(defaultRank)) {
-            ranks.put(defaultRank, new Rank(defaultRank, "Spieler", "§7", NamedTextColor.GRAY, 0, false, List.of()));
+            ranks.put(defaultRank, new Rank(defaultRank, "Spieler", "", "§7", NamedTextColor.GRAY, 0, false, false, List.of()));
         }
-        // nach Gewicht sortieren (höchster zuerst)
         List<Rank> sorted = new ArrayList<>(ranks.values());
         sorted.sort((a, b) -> b.weight() - a.weight());
         ranks.clear();
         for (Rank r : sorted) ranks.put(r.id(), r);
+    }
+
+    private static TextColor parseColor(String s) {
+        if (s == null) return NamedTextColor.GRAY;
+        s = s.trim();
+        if (s.startsWith("#")) {
+            TextColor c = TextColor.fromHexString(s);
+            return c == null ? NamedTextColor.GRAY : c;
+        }
+        NamedTextColor n = NamedTextColor.NAMES.value(s.toLowerCase(Locale.ROOT));
+        return n == null ? NamedTextColor.GRAY : n;
+    }
+
+    /**
+     * Darf "by" diesem Spieler diesen Rang geben?
+     * Konsole immer. Geschützte Ränge (Owner/Leitung/Admin) nur, wer selbst einen geschützten Rang
+     * mit mindestens diesem Gewicht hat – oder die Permission odv.rank.&lt;rang&gt; ausdrücklich gesetzt bekam.
+     * Spieler mit geschütztem Rang kann man nur mit eben solchen Rechten ändern.
+     */
+    public String denyReason(CommandSender by, Rank target, UUID targetPlayer) {
+        if (!(by instanceof Player p)) return null;
+        if (!p.hasPermission("odv.rank")) return "Du darfst keine Ränge vergeben.";
+        Rank own = of(p);
+        Rank current = of(targetPlayer);
+        boolean explicit = p.isPermissionSet("odv.rank." + target.id()) && p.hasPermission("odv.rank." + target.id());
+        if (current.protect() && !(own.protect() && own.weight() >= current.weight())) {
+            return current.name() + " ist ein geschützter Rang – nur die Konsole oder höhere Leitung kann ihn ändern.";
+        }
+        if (target.protect() && !explicit && !(own.protect() && own.weight() >= target.weight())) {
+            return target.name() + " kann am Anfang nur über die Konsole vergeben werden (/rank set <Spieler> " + target.id() + ").";
+        }
+        if (!target.protect() && !explicit && !own.protect() && own.weight() > 0 && target.weight() >= own.weight()) {
+            return "Du kannst nur Ränge unter deinem eigenen vergeben.";
+        }
+        return null;
     }
 
     public void openTable() {
@@ -189,6 +234,11 @@ public class RankManager {
         }
         UUID id = offline.getUniqueId();
         String name = offline.getName() != null ? offline.getName() : playerName;
+        String deny = denyReason(by, r, id);
+        if (deny != null) {
+            Txt.send(by, plugin.settings().prefix + "§c" + deny);
+            return;
+        }
         if (r.id().equals(defaultRank)) assigned.remove(id);
         else assigned.put(id, r.id());
         upsert(id, name, r.id(), mutedUntil.getOrDefault(id, 0L));
@@ -237,6 +287,10 @@ public class RankManager {
         }
         UUID id = offline.getUniqueId();
         String name = offline.getName() != null ? offline.getName() : playerName;
+        if (by instanceof Player bp && !bp.getUniqueId().equals(id) && of(id).weight() > 0 && of(id).weight() >= of(bp).weight()) {
+            Txt.send(by, plugin.settings().prefix + "§cDu kannst niemanden mit gleichem oder höherem Rang muten.");
+            return;
+        }
         long until = minutes <= 0 ? 0 : System.currentTimeMillis() + minutes * 60_000L;
         if (until == 0) mutedUntil.remove(id);
         else mutedUntil.put(id, until);
@@ -290,6 +344,6 @@ public class RankManager {
     }
 
     public void ranksList(Consumer<String> out) {
-        for (Rank r : ranks.values()) out.accept("§8» §f" + r.id() + " §8- " + r.prefix() + r.name() + " §8(Gewicht " + r.weight() + (r.staff() ? ", Team" : "") + ")");
+        for (Rank r : ranks.values()) out.accept("§8» §f" + r.id() + " §8- " + r.prefix() + r.name() + " §8(Gewicht " + r.weight() + (r.staff() ? ", Team" : "") + (r.protect() ? ", §cgeschützt§8" : "") + ")");
     }
 }

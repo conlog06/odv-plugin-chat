@@ -209,21 +209,8 @@ public class Menus implements InventoryHolder {
     // ================================================================ Szenarien
 
     public static void scenarios(OdvPlugin plugin, Player p) {
-        Menus m = new Menus(plugin, Kind.SCENARIOS, p, 4, "§8» §e§lSzenarien & Features", 0);
-        int slot = 0;
-        for (Scenario sc : Scenario.values()) {
-            boolean on = plugin.settings().has(sc);
-            m.set(slot++, plugin.items().of(sc.icon).name((on ? "§a" : "§8") + "§l" + sc.display + (on ? " §a✔" : " §c✘"))
-                    .lore("§7" + sc.description).glow(on).build(), null);
-        }
-        slot = 18;
-        for (Feature f : Feature.values()) {
-            if (!plugin.settings().has(f)) continue;
-            m.set(slot++, plugin.items().of(f.icon).name("§b§l" + f.display).lore("§7" + f.description).build(), null);
-        }
-        m.set(31, plugin.items().of(plugin.settings().oldPvp ? Material.WOODEN_SWORD : Material.NETHERITE_SWORD)
-                .name("§f§lKampf: " + (plugin.settings().oldPvp ? "§a1.8.9-PvP" : "§b26.3-PvP")).build(), null);
-        p.openInventory(m.inv);
+        boolean vote = plugin.votes().active() && plugin.game().getState().isLobby();
+        ScenarioGui.open(plugin, p, vote ? ScenarioGui.Mode.VOTE : ScenarioGui.Mode.SCENARIOS);
     }
 
     // ================================================================ Leaderboard (/lb)

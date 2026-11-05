@@ -309,6 +309,8 @@ public class GameListener implements Listener {
             case GameManager.I_SETUP -> {
                 if (p.hasPermission("odv.admin")) SetupGui.open(plugin, p, SetupGui.Page.MAIN);
             }
+            case GameManager.I_VOTE -> de.crafterteam.odv.gui.ScenarioGui.open(plugin, p, de.crafterteam.odv.gui.ScenarioGui.Mode.VOTE);
+            case GameManager.I_HOST -> de.crafterteam.odv.gui.HostGui.open(plugin, p);
             case GameManager.I_START -> {
                 if (!p.hasPermission("odv.admin")) return;
                 String err = game().forceStart(10);
@@ -340,13 +342,24 @@ public class GameListener implements Listener {
             if (top) m.click(p, e.getRawSlot());
             return;
         }
+        if (h instanceof de.crafterteam.odv.gui.ScenarioGui g) {
+            e.setCancelled(true);
+            if (top) g.click(p, e.getRawSlot(), e.getClick());
+            return;
+        }
+        if (h instanceof de.crafterteam.odv.gui.HostGui g) {
+            e.setCancelled(true);
+            if (top) g.click(p, e.getRawSlot(), e.getClick());
+            return;
+        }
         if (locked() && !practice(p) && !builder(p)) e.setCancelled(true);
     }
 
     @EventHandler
     public void onDrag(InventoryDragEvent e) {
         InventoryHolder h = e.getInventory().getHolder(false);
-        if (h instanceof SetupGui || h instanceof Menus) e.setCancelled(true);
+        if (h instanceof SetupGui || h instanceof Menus || h instanceof de.crafterteam.odv.gui.ScenarioGui
+                || h instanceof de.crafterteam.odv.gui.HostGui) e.setCancelled(true);
         else if (locked() && e.getWhoClicked() instanceof Player p && !practice(p) && !builder(p)) e.setCancelled(true);
     }
 

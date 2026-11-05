@@ -76,6 +76,10 @@ anti-xray:
   detection: true             # verdächtiges Abbauen melden
   alert-veins: 5              # versteckte Dia-/Debris-Adern bis zur Meldung
 
+# Szenarien & Features: true = an, false = aus, vote = Spieler stimmen in der Lobby ab
+voting:
+  winners: 3                  # so viele Szenarien/Features gewinnen die Abstimmung
+
 scenarios:
   cutclean: false
   bowless: false
@@ -85,6 +89,8 @@ scenarios:
   timber: false
   rodless: false
   backpack: false
+  diamondless: false
+  goldless: false
   timebomb-seconds: 30
   xtra-apples-chance: 4.0     # Prozent pro Blatt
 
@@ -100,7 +106,12 @@ features:
   showdown: true
   betting: true
   practice: true
+  meteor: true
+  end-finale: false           # true = Finale auf der End-Insel statt Showdown
+  slowmo: true
+  podium: true
   supply-interval: 300        # Sekunden
+  meteor-time: 600            # Sekunden nach Rundenstart
 
 chat:
   slowmode: 2                 # Sekunden zwischen Nachrichten (Team-Ränge & Premium ausgenommen)

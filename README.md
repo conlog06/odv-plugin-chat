@@ -1,7 +1,7 @@
-# ODVMeetup 3.1 – ODV & Meetup für Paper 26.3
+# ODVMeetup 3.2 – ODV & Meetup für Paper 26.3
 
 ## ⬇️ Download
-**[ODVMeetup-3.1.0.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.1.0.jar)**
+**[ODVMeetup-3.2.0.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.2.0.jar)**
 · alle Versionen unter [Releases](https://github.com/conlog06/odv-plugin-chat/releases)
 
 Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite-Treiber bringt Paper mit).
@@ -44,8 +44,20 @@ CutClean · BowLess · Triple Ores · Timebomb · Xtra Apples · Timber · RodLe
 
 Dazu: **Practice-Arena** in der Lobby (`/practice`), Bossbar mit Timern, Scoreboard wie Mega-ODV, Hologramme mit Top-5.
 
+## Szenarien, Features & Abstimmung
+Im Menü (Leitung- oder Host-Item → Szenarien/Features) steht jedes Szenario und Feature auf **An**, **Aus** oder
+**Abstimmung**. Steht etwas auf Abstimmung, bekommen Spieler in der Lobby ein Abstimmungs-Item; die meistgewählten
+(Anzahl einstellbar) sind beim Start aktiv.
+
+## Das 26.3-Konzept
+- **Netherite-Meteor**: wird 60 s vorher mit Koordinaten angekündigt, schlägt sichtbar ein, Krater mit Ancient Debris + Meteorkern.
+- **End-Finale**: statt Showdown kämpfen die Letzten auf einer schwebenden End-Insel – runterfallen = raus.
+- **Zeitlupen-Finale**: beim entscheidenden Kill läuft der ganze Server 3 Sekunden in Zeitlupe.
+- **Siegerpodest**: die Sieger stehen danach als Mannequins (mit Skin & Rüstung) in der Lobby.
+
 ## Rangsystem
-Eigene Ränge ohne LuckPerms: Prefix in **Chat, Tab und über dem Kopf**, Tab nach Rang sortiert, Rechte pro Rang.
+Eigene Ränge ohne LuckPerms: Prefix mit **Farbverlauf** in **Chat, Tab und über dem Kopf**, Tab nach Rang sortiert, Rechte pro Rang.
+**Owner, Leitung und Admin sind geschützt**: am Anfang nur über die Konsole vergebbar, danach nur von jemandem, der selbst so einen Rang hat.
 Vorgegeben (aus eurer Teamliste): Owner, Administrator, SrDeveloper, Developer, SrModerator, Moderator, Builder,
 Content, Premium, Spieler – alles in `plugins/ODVMeetup/ranks.yml` anpassbar. Gespeichert in SQLite oder MySQL.
 
@@ -79,7 +91,8 @@ Content, Premium, Spieler – alles in `plugins/ODVMeetup/ranks.yml` anpassbar. 
 | `/odv kit save\|give\|reset [meetup\|odv\|practice]` | Kits |
 | `/odv xray [Name]` · `/odv antixray paper` · `/odv supply` · `/odv pregen\|backup\|reload` | Werkzeuge |
 | `/rank set\|remove\|list\|reload` · `/sc` · `/mute` · `/unmute` | Ränge & Moderation |
+| `/invsee` · `/ecsee` · `/armorsee` · `/gm 0-3` · `/give` · `/i` · `/tp` · `/tphere` · `/heal` · `/feed` · `/fly` · `/clear` · `/vanish` · `/speed` | Admin (`odv.cmd.<befehl>`) |
 | `/odv announce <Text>` · `/odv changelog post` | Chat + Discord-Webhook |
 
 ## Selbst bauen
-`mvn package` (JDK 21+) → `target/ODVMeetup-3.1.0.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.
+`mvn package` (JDK 21+) → `target/ODVMeetup-3.2.0.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.

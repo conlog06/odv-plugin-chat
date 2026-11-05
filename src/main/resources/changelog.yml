@@ -1,6 +1,19 @@
 # Wird mit /changelog angezeigt und mit /odv changelog post an Discord geschickt.
 # Neueste Version oben. Eigene Einträge einfach ergänzen.
 versions:
+  - version: "3.2.0"
+    date: "05.11.2026"
+    changes:
+      - "Neues Szenario- & Feature-Menü mit Tabs – alles auf An, Aus oder Abstimmung stellbar"
+      - "Lobby-Abstimmung: Spieler wählen Szenarien/Features, die Gewinner sind beim Start aktiv"
+      - "Netherite-Meteor: angekündigter Einschlag mit Krater voller Ancient Debris"
+      - "End-Finale: das Finale auf einer schwebenden End-Insel – wer fällt, ist raus"
+      - "Zeitlupen-Finale beim entscheidenden Kill und Siegerpodest mit lebensechten Figuren"
+      - "Ränge mit Farbverläufen, Owner/Leitung/Admin nur per Konsole vergebbar"
+      - "Host-Menü (eingeschränkt) und Leitungs-Menü als Lobby-Items"
+      - "Admin-Befehle: /invsee /ecsee /armorsee /gm /give /i /tp /tphere /heal /feed /fly /clear /vanish /speed"
+      - "Kupfer-Werkzeuge im ODV-Kit, Ghast-Taxi im Supply-Drop, Kupfer-Laternen"
+      - "Scoreboard zeigt '-' statt 'Unknown'"
   - version: "3.1.0"
     date: "05.11.2026"
     changes:

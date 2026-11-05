@@ -14,7 +14,11 @@ public enum Feature {
     HEATMAP("Kampf-Heatmap", Material.FILLED_MAP, "Nach der Runde: Karte, wo gekämpft wurde."),
     SHOWDOWN("Showdown", Material.NETHERITE_SWORD, "Nach dem Zeitlimit: alle in die Mitte, letzte Border."),
     BETTING("Zuschauer-Wetten", Material.EMERALD, "Zuschauer tippen den Sieger und sammeln Wettpunkte."),
-    PRACTICE("Practice-Arena", Material.IRON_SWORD, "In der Lobby kämpfen, bis die Runde startet: /practice");
+    PRACTICE("Practice-Arena", Material.IRON_SWORD, "In der Lobby kämpfen, bis die Runde startet: /practice"),
+    METEOR("Netherite-Meteor", Material.ANCIENT_DEBRIS, "Mitten in der Runde schlägt ein Meteor ein – voller Ancient Debris."),
+    END_FINALE("End-Finale", Material.END_PORTAL_FRAME, "Statt Showdown: Das Finale findet auf einer schwebenden End-Insel statt."),
+    SLOWMO("Zeitlupen-Finale", Material.CLOCK, "Beim entscheidenden Kill läuft der ganze Server kurz in Zeitlupe."),
+    PODIUM("Siegerpodest", Material.ARMOR_STAND, "Die Sieger stehen danach als lebensechte Figuren in der Lobby.");
 
     public final String display;
     public final Material icon;
@@ -24,6 +28,11 @@ public enum Feature {
         this.display = display;
         this.icon = icon;
         this.description = description;
+    }
+
+    /** Kann darüber abgestimmt werden? (Practice betrifft nur die Lobby) */
+    public boolean votable() {
+        return this != PRACTICE && this != PODIUM;
     }
 
     public String key() {

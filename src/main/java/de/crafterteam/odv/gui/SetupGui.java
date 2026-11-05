@@ -37,7 +37,7 @@ public class SetupGui implements InventoryHolder {
 
     public enum Page {
         MAIN("§8» §b§lODV-Setup"), TEAMS("§8» §bTeams"), TIMES("§8» §bZeiten"), BORDER("§8» §bBorder"), ARENA("§8» §bArena & Lobby"),
-        SPAWNS("§8» §bSpawns"), KIT("§8» §bKits"), COMBAT("§8» §bKampf (PvP)"), SCENARIOS("§8» §bSzenarien"), FEATURES("§8» §bFeatures"),
+        SPAWNS("§8» §bSpawns"), KIT("§8» §bKits"), COMBAT("§8» §bKampf (PvP)"), SCENARIOS("§8» §bSzenarien"), FEATURES("§8» §bTimer"),
         WORLD("§8» §bWelt & Anti-Xray"), RULES("§8» §bRegeln & Backup"), STORAGE("§8» §bSpeicher");
         final String title;
 
@@ -158,9 +158,12 @@ public class SetupGui implements InventoryHolder {
         category(32, Material.ENDER_PEARL, "§b§lSpawns", Page.SPAWNS, "§7Varo-Löcher, Plattform oder Zufall");
         category(33, Material.CHEST, "§b§lKits", Page.KIT, "§7Meetup-, ODV- & Practice-Kit");
         category(34, Material.NETHERITE_SWORD, "§b§lKampf (PvP)", Page.COMBAT, "§71.8.9-PvP oder 26.3-PvP");
-        category(38, Material.TNT, "§b§lSzenarien", Page.SCENARIOS, "§7CutClean, Timebomb, Timber & mehr");
-        category(39, Material.NETHER_STAR, "§b§lFeatures", Page.FEATURES, "§7Die 10 neuen Features");
+        set(38, plugin.items().of(Material.TNT).name("§b§lSzenarien").lore("§7An, Aus oder Abstimmung", "", "§eKlick: §7öffnen").build(),
+                (p, c) -> ScenarioGui.open(plugin, p, ScenarioGui.Mode.SCENARIOS));
+        set(39, plugin.items().of(Material.NETHER_STAR).name("§b§lFeatures").lore("§7Meteor, End-Finale, Voting …", "", "§eKlick: §7öffnen").build(),
+                (p, c) -> ScenarioGui.open(plugin, p, ScenarioGui.Mode.FEATURES));
         category(40, Material.DIAMOND_ORE, "§b§lWelt & Anti-Xray", Page.WORLD, "§7Dia-Rate, Plains, Xray-Schutz");
+        category(43, Material.CLOCK, "§b§lTimer", Page.FEATURES, "§7Supply-Drops, Meteor, Timebomb");
         category(41, Material.GOLDEN_APPLE, "§b§lRegeln & Backup", Page.RULES, "§7Regeneration, Nether, Backups");
         category(42, Material.ENDER_CHEST, "§b§lSpeicher", Page.STORAGE, "§7MySQL oder lokal");
         set(49, plugin.items().of(Material.GOLDEN_HELMET).name("§6§lHost werden").lore("§7Host: §f" + (plugin.game().getHost() == null ? "-"
@@ -347,31 +350,19 @@ public class SetupGui implements InventoryHolder {
     }
 
     private void scenarios() {
-        int[] slots = {19, 20, 21, 22, 23, 24, 25, 29, 30, 31, 32, 33};
-        Scenario[] all = Scenario.values();
-        for (int i = 0; i < all.length && i < slots.length; i++) {
-            Scenario sc = all[i];
-            toggle(slots[i], sc.icon, sc.display, () -> s().has(sc), b -> {
-                if (b) s().scenarios.add(sc);
-                else s().scenarios.remove(sc);
-            }, "§7" + sc.description);
-        }
-        number(38, Material.TNT_MINECART, "Timebomb-Zeit", 5, 15, 5, 300, () -> s().timebombSeconds, v -> s().timebombSeconds = v, v -> v + "s", false);
-        number(42, Material.APPLE, "Xtra-Apples Chance (%)", 1, 5, 1, 100, () -> (int) s().xtraAppleChance, v -> s().xtraAppleChance = v, v -> v + " %", false);
+        number(20, Material.TNT_MINECART, "Timebomb-Zeit", 5, 15, 5, 300, () -> s().timebombSeconds, v -> s().timebombSeconds = v, v -> v + "s", false);
+        number(22, Material.APPLE, "Xtra-Apples Chance (%)", 1, 5, 1, 100, () -> (int) s().xtraAppleChance, v -> s().xtraAppleChance = v, v -> v + " %", false);
+        set(24, plugin.items().of(Material.TNT).name("§6§lSzenarien an/aus").lore("§eKlick: §7öffnen").build(),
+                (p, c) -> ScenarioGui.open(plugin, p, ScenarioGui.Mode.SCENARIOS));
     }
 
     private void features() {
-        int[] slots = {19, 20, 21, 22, 23, 24, 25, 29, 30, 31, 33};
-        Feature[] all = Feature.values();
-        for (int i = 0; i < all.length && i < slots.length; i++) {
-            Feature f = all[i];
-            toggle(slots[i], f.icon, f.display, () -> s().has(f), b -> {
-                if (b) s().features.add(f);
-                else s().features.remove(f);
-                if (f == Feature.PRACTICE) plugin.game().resetToLobbyItems();
-            }, "§7" + f.description);
-        }
-        number(40, Material.CHEST, "Supply-Drop alle", 30, 120, 60, 3600, () -> s().supplyInterval, v -> s().supplyInterval = v, Txt::time, false);
+        number(20, Material.CHEST, "Supply-Drop alle", 30, 120, 60, 3600, () -> s().supplyInterval, v -> s().supplyInterval = v, Txt::time, false);
+        number(22, Material.ANCIENT_DEBRIS, "Meteor nach", 30, 300, 60, 14400, () -> s().meteorTime, v -> s().meteorTime = v, Txt::time, false);
+        number(29, Material.TNT_MINECART, "Timebomb-Zeit", 5, 15, 5, 300, () -> s().timebombSeconds, v -> s().timebombSeconds = v, v -> v + "s", false);
+        number(31, Material.APPLE, "Xtra-Apples Chance (%)", 1, 5, 1, 100, () -> (int) s().xtraAppleChance, v -> s().xtraAppleChance = v, v -> v + " %", false);
+        set(24, plugin.items().of(Material.NETHER_STAR).name("§b§lFeatures an/aus").lore("§eKlick: §7öffnen").build(),
+                (p, c) -> ScenarioGui.open(plugin, p, ScenarioGui.Mode.FEATURES));
     }
 
     private void world() {

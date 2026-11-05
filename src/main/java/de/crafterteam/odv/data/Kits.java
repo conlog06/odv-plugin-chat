@@ -107,12 +107,13 @@ public class Kits {
     }
 
     private void odv(PlayerInventory inv) {
-        inv.setItem(0, new ItemStack(Material.STONE_SWORD));
-        inv.setItem(1, new ItemStack(Material.STONE_PICKAXE));
-        inv.setItem(2, new ItemStack(Material.STONE_AXE));
+        inv.setItem(0, new ItemStack(Material.COPPER_SWORD));
+        inv.setItem(1, new ItemStack(Material.COPPER_PICKAXE));
+        inv.setItem(2, new ItemStack(Material.COPPER_AXE));
         inv.setItem(3, new ItemStack(Material.COOKED_BEEF, 16));
         inv.setItem(4, new ItemStack(Material.CRAFTING_TABLE));
-        inv.setItem(5, new ItemStack(Material.TORCH, 16));
+        inv.setItem(5, new ItemStack(Material.COPPER_TORCH, 16));
+        inv.setItem(6, new ItemStack(Material.BUNDLE));
     }
 
     private void practice(PlayerInventory inv) {

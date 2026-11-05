@@ -66,7 +66,7 @@ public final class Structures {
                 if (sz == -4) continue; // Portalseite frei lassen
                 put(l, w, cx + sx, fy + 1, cz + sz, bd(Material.STONE_BRICK_WALL));
                 put(l, w, cx + sx, fy + 2, cz + sz, bd(Material.STONE_BRICK_WALL));
-                put(l, w, cx + sx, fy + 3, cz + sz, bd(Material.LANTERN));
+                put(l, w, cx + sx, fy + 3, cz + sz, bd(Material.COPPER_LANTERN));
             }
         return l;
     }
@@ -96,7 +96,7 @@ public final class Structures {
                 for (int dy = 1; dy <= 5; dy++) put(l, w, cx + dx, ty + dy, cz + dz, bd(Material.AIR));
                 if (d > R - 0.5) {
                     put(l, w, cx + dx, ty + 1, cz + dz, bd(Material.SPRUCE_FENCE));
-                    if ((Math.abs(dx) + Math.abs(dz)) % 7 == 0) put(l, w, cx + dx, ty + 2, cz + dz, bd(Material.LANTERN));
+                    if ((Math.abs(dx) + Math.abs(dz)) % 7 == 0) put(l, w, cx + dx, ty + 2, cz + dz, bd(Material.COPPER_LANTERN));
                 } else if (top == Material.GRASS_BLOCK && r.nextInt(9) == 0) {
                     Material[] flowers = {Material.POPPY, Material.DANDELION, Material.OXEYE_DAISY, Material.CORNFLOWER, Material.SHORT_GRASS};
                     put(l, w, cx + dx, ty + 1, cz + dz, bd(flowers[r.nextInt(flowers.length)]));
@@ -163,6 +163,40 @@ public final class Structures {
         for (int dx = -1; dx <= 1; dx++)
             for (int dz = -1; dz <= 1; dz++)
                 for (int dy = 1; dy <= 3; dy++) put(l, w, x + dx, y + dy, z + dz, air);
+        return l;
+    }
+
+    /** Schwebende End-Insel (Radius 20) für das End-Finale. Mitte = Stehplatz. */
+    public static List<Change> endIsland(Location stand) {
+        List<Change> l = new ArrayList<>();
+        World w = stand.getWorld();
+        int cx = stand.getBlockX(), ty = stand.getBlockY() - 1, cz = stand.getBlockZ();
+        Random r = new Random(13);
+        int R = 20;
+        for (int dx = -R - 1; dx <= R + 1; dx++)
+            for (int dz = -R - 1; dz <= R + 1; dz++) {
+                double d = Math.sqrt(dx * dx + dz * dz) + r.nextDouble() * 1.2;
+                if (d > R) continue;
+                int depth = (int) Math.max(1, (R - d) * 0.9 + r.nextInt(3));
+                for (int dy = 0; dy < depth; dy++) put(l, w, cx + dx, ty - dy, cz + dz, bd(Material.END_STONE));
+                double ring = Math.sqrt(dx * dx + dz * dz);
+                Material top = ring <= 3.5 ? Material.PURPUR_BLOCK : (Math.abs(dx) <= 1 || Math.abs(dz) <= 1) && ring < 12 ? Material.END_STONE_BRICKS : Material.END_STONE;
+                put(l, w, cx + dx, ty, cz + dz, bd(top));
+                for (int dy = 1; dy <= 8; dy++) put(l, w, cx + dx, ty + dy, cz + dz, bd(Material.AIR));
+                if (top == Material.END_STONE && ring > 6 && ring < R - 3 && r.nextInt(55) == 0) {
+                    int h = 1 + r.nextInt(3);
+                    for (int dy = 1; dy <= h; dy++) put(l, w, cx + dx, ty + dy, cz + dz, bd(Material.CHORUS_PLANT));
+                    put(l, w, cx + dx, ty + h + 1, cz + dz, bd(Material.CHORUS_FLOWER));
+                }
+            }
+        // vier Obsidian-Säulen mit End-Stäben
+        for (int[] o : new int[][]{{11, 0}, {-11, 0}, {0, 11}, {0, -11}}) {
+            for (int dy = 1; dy <= 6; dy++) put(l, w, cx + o[0], ty + dy, cz + o[1], bd(dy == 6 ? Material.CRYING_OBSIDIAN : Material.OBSIDIAN));
+            put(l, w, cx + o[0], ty + 7, cz + o[1], bd(Material.END_ROD));
+        }
+        // Mitte: Purpur-Ring mit Drachenkopf
+        put(l, w, cx, ty + 1, cz, bd(Material.PURPUR_PILLAR));
+        put(l, w, cx, ty + 2, cz, bd(Material.DRAGON_HEAD));
         return l;
     }
 }

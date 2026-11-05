@@ -41,6 +41,38 @@ commands:
     description: Spieler muten
   unmute:
     description: Mute aufheben
+  invsee:
+    description: Inventar eines Spielers ansehen/bearbeiten
+  ecsee:
+    description: Endertruhe eines Spielers
+    aliases: [endersee]
+  armorsee:
+    description: Rüstung eines Spielers
+  gamemode:
+    description: Spielmodus
+    aliases: [gm]
+  give:
+    description: Item geben
+  i:
+    description: Item für dich
+    aliases: [item]
+  tp:
+    description: Teleportieren
+  tphere:
+    description: Spieler zu dir holen
+  heal:
+    description: Heilen
+  feed:
+    description: Sättigen
+  fly:
+    description: Fliegen an/aus
+  clear:
+    description: Inventar leeren
+  vanish:
+    description: Unsichtbar für Spieler
+    aliases: [v]
+  speed:
+    description: Lauf-/Fluggeschwindigkeit
 permissions:
   odv.admin:
     description: Setup, Start/Stop, Spawns, Kits, Backups, Xray-Meldungen
@@ -63,3 +95,24 @@ permissions:
   odv.bypass.slowmode:
     description: Kein Chat-Slowmode
     default: false
+  odv.host:
+    description: Host-Menü (Start, Modus, Teams, Szenarien)
+    default: op
+  odv.cmd.*:
+    description: Alle Admin-Befehle
+    default: op
+    children:
+      odv.cmd.invsee: true
+      odv.cmd.ecsee: true
+      odv.cmd.armorsee: true
+      odv.cmd.gamemode: true
+      odv.cmd.give: true
+      odv.cmd.i: true
+      odv.cmd.tp: true
+      odv.cmd.tphere: true
+      odv.cmd.heal: true
+      odv.cmd.feed: true
+      odv.cmd.fly: true
+      odv.cmd.clear: true
+      odv.cmd.vanish: true
+      odv.cmd.speed: true

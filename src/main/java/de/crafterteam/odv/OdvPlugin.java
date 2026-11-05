@@ -43,6 +43,9 @@ public class OdvPlugin extends JavaPlugin {
     private OdvCommand command;
     private de.crafterteam.odv.data.RankManager ranks;
     private de.crafterteam.odv.util.Discord discord;
+    private de.crafterteam.odv.game.VoteManager votes;
+    private AdminCommands admin;
+    private de.crafterteam.odv.feature.EventManager events;
 
     @Override
     public void onEnable() {
@@ -57,6 +60,9 @@ public class OdvPlugin extends JavaPlugin {
         ranks.load();
         ranks.openTable();
         discord = new de.crafterteam.odv.util.Discord(this);
+        votes = new de.crafterteam.odv.game.VoteManager(this);
+        admin = new AdminCommands(this);
+        events = new de.crafterteam.odv.feature.EventManager(this);
         combat = new CombatManager(this);
         spawns = new SpawnManager(this);
         arena = new Arena(this);
@@ -79,7 +85,14 @@ public class OdvPlugin extends JavaPlugin {
                 pc.setTabCompleter(command);
             }
         }
-        for (Listener l : new Listener[]{new GameListener(this), combat, scenarios, features, antiXray, wand}) {
+        for (String c : AdminCommands.COMMANDS) {
+            var pc = getCommand(c);
+            if (pc != null) {
+                pc.setExecutor(admin);
+                pc.setTabCompleter(admin);
+            }
+        }
+        for (Listener l : new Listener[]{admin, new GameListener(this), combat, scenarios, features, antiXray, wand}) {
             Bukkit.getPluginManager().registerEvents(l, this);
         }
         game.applyWorldSettings();
@@ -92,6 +105,10 @@ public class OdvPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         ChunkPregen.stop();
+        if (events != null) {
+            events.restoreTickRate();
+            events.clearPodium();
+        }
         if (holograms != null) holograms.removeAll();
         if (game != null) {
             game.shutdown();
@@ -136,4 +153,7 @@ public class OdvPlugin extends JavaPlugin {
     public OdvCommand command() { return command; }
     public de.crafterteam.odv.data.RankManager ranks() { return ranks; }
     public de.crafterteam.odv.util.Discord discord() { return discord; }
+    public de.crafterteam.odv.game.VoteManager votes() { return votes; }
+    public AdminCommands admin() { return admin; }
+    public de.crafterteam.odv.feature.EventManager events() { return events; }
 }

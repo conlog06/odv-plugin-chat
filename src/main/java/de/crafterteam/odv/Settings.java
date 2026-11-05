@@ -64,6 +64,21 @@ public class Settings {
     public boolean xrayDetection;
     public int xrayAlertVeins;
 
+    /** AN = immer, AUS = nie, ABSTIMMUNG = Spieler stimmen in der Lobby ab. */
+    public enum State {
+        OFF("§c✘ Aus", "§c"), ON("§a✔ An", "§a"), VOTE("§e✦ Abstimmung", "§e");
+        public final String label, color;
+
+        State(String label, String color) {
+            this.label = label;
+            this.color = color;
+        }
+    }
+
+    public final java.util.Map<Scenario, State> scenarioState = new java.util.EnumMap<>(Scenario.class);
+    public final java.util.Map<Feature, State> featureState = new java.util.EnumMap<>(Feature.class);
+    public int voteWinners, meteorTime;
+    /** Aktiv in der laufenden Runde (Lobby: nur „An“). */
     public final Set<Scenario> scenarios = EnumSet.noneOf(Scenario.class);
     public int timebombSeconds;
     public double xtraAppleChance;
@@ -147,13 +162,17 @@ public class Settings {
         xrayDetection = c.getBoolean("anti-xray.detection", true);
         xrayAlertVeins = clamp(c.getInt("anti-xray.alert-veins", 5), 1, 100);
 
-        scenarios.clear();
-        for (Scenario s : Scenario.values()) if (c.getBoolean("scenarios." + s.key(), false)) scenarios.add(s);
+        for (Scenario s : Scenario.values()) scenarioState.put(s, state(c.get("scenarios." + s.key()), State.OFF));
         timebombSeconds = clamp(c.getInt("scenarios.timebomb-seconds", 30), 5, 300);
         xtraAppleChance = Math.max(0, Math.min(100, c.getDouble("scenarios.xtra-apples-chance", 4.0)));
 
-        features.clear();
-        for (Feature f : Feature.values()) if (c.getBoolean("features." + f.key(), true)) features.add(f);
+        for (Feature f : Feature.values()) {
+            State st = state(c.get("features." + f.key()), f == Feature.END_FINALE ? State.OFF : State.ON);
+            featureState.put(f, st == State.VOTE && !f.votable() ? State.ON : st);
+        }
+        voteWinners = clamp(c.getInt("voting.winners", 3), 1, 10);
+        meteorTime = clamp(c.getInt("features.meteor-time", 600), 60, 14400);
+        resetActive();
         supplyInterval = clamp(c.getInt("features.supply-interval", 300), 60, 3600);
 
         spectatorRadius = clamp(c.getInt("match.spectator-radius", 150), 0, 10000);
@@ -211,10 +230,12 @@ public class Settings {
         c.set("spawn.blocks-per-tick", blocksPerTick);
         c.set("anti-xray.detection", xrayDetection);
         c.set("anti-xray.alert-veins", xrayAlertVeins);
-        for (Scenario s : Scenario.values()) c.set("scenarios." + s.key(), scenarios.contains(s));
+        for (Scenario s : Scenario.values()) c.set("scenarios." + s.key(), write(scenarioState.get(s)));
         c.set("scenarios.timebomb-seconds", timebombSeconds);
         c.set("scenarios.xtra-apples-chance", xtraAppleChance);
-        for (Feature f : Feature.values()) c.set("features." + f.key(), features.contains(f));
+        for (Feature f : Feature.values()) c.set("features." + f.key(), write(featureState.get(f)));
+        c.set("voting.winners", voteWinners);
+        c.set("features.meteor-time", meteorTime);
         c.set("features.supply-interval", supplyInterval);
         c.set("match.spectator-radius", spectatorRadius);
         c.set("chat.slowmode", chatSlowmode);
@@ -246,6 +267,45 @@ public class Settings {
             timeLimit = 30;
         }
         save();
+    }
+
+    /** Aktive Sets auf „An“ zurücksetzen (Lobby). */
+    public void resetActive() {
+        scenarios.clear();
+        features.clear();
+        scenarioState.forEach((k, v) -> {
+            if (v == State.ON) scenarios.add(k);
+        });
+        featureState.forEach((k, v) -> {
+            if (v == State.ON) features.add(k);
+        });
+    }
+
+    public void setState(Scenario s, State st) {
+        scenarioState.put(s, st);
+        resetActive();
+    }
+
+    public void setState(Feature f, State st) {
+        featureState.put(f, st == State.VOTE && !f.votable() ? State.ON : st);
+        resetActive();
+    }
+
+    private static State state(Object o, State def) {
+        if (o instanceof Boolean b) return b ? State.ON : State.OFF;
+        if (o instanceof String str) {
+            return switch (str.trim().toLowerCase(Locale.ROOT)) {
+                case "vote", "abstimmung", "voting" -> State.VOTE;
+                case "true", "on", "an" -> State.ON;
+                case "false", "off", "aus" -> State.OFF;
+                default -> def;
+            };
+        }
+        return def;
+    }
+
+    private static Object write(State st) {
+        return st == State.VOTE ? "vote" : st == State.ON;
     }
 
     public boolean has(Scenario s) {
