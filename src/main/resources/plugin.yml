@@ -21,6 +21,26 @@ commands:
     aliases: [bp]
   ping:
     description: Markierung für dein Team setzen
+  coords:
+    description: Eigene Koordinaten an dein Team schicken
+  lb:
+    description: Leaderboard
+    aliases: [leaderboard, top]
+  teamliste:
+    description: Alle Teammitglieder anzeigen
+    aliases: [team-liste, staff]
+  changelog:
+    description: Neuerungen anzeigen
+  rank:
+    description: Rangsystem
+    aliases: [rang]
+  sc:
+    description: Staff-Chat
+    aliases: [staffchat]
+  mute:
+    description: Spieler muten
+  unmute:
+    description: Mute aufheben
 permissions:
   odv.admin:
     description: Setup, Start/Stop, Spawns, Kits, Backups, Xray-Meldungen
@@ -28,3 +48,18 @@ permissions:
   odv.play:
     description: An Runden teilnehmen
     default: true
+  odv.rank:
+    description: Ränge vergeben
+    default: op
+  odv.staff:
+    description: Staff-Chat, Zuschauer überall, Xray-Meldungen
+    default: op
+  odv.mute:
+    description: Spieler muten
+    default: op
+  odv.bypass:
+    description: Kein Chat-Slowmode/Spam-Schutz
+    default: op
+  odv.bypass.slowmode:
+    description: Kein Chat-Slowmode
+    default: false

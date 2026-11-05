@@ -10,7 +10,9 @@ public enum Scenario {
     XTRA_APPLES("Xtra Apples", Material.APPLE, "Blätter droppen deutlich öfter Äpfel."),
     TIMBER("Timber", Material.OAK_LOG, "Ein Stamm abbauen fällt den ganzen Baum."),
     RODLESS("RodLess", Material.FISHING_ROD, "Keine Angeln."),
-    BACKPACK("Backpack", Material.BUNDLE, "Jedes Team hat einen Rucksack: /backpack");
+    BACKPACK("Backpack", Material.BUNDLE, "Jedes Team hat einen Rucksack: /backpack"),
+    DIAMONDLESS("Diamondless", Material.DIAMOND_ORE, "Diamanterz droppt nichts – Spieler droppen beim Tod 1 Diamant."),
+    GOLDLESS("Goldless", Material.GOLD_ORE, "Golderz droppt nichts – Spieler droppen beim Tod 4 Goldbarren.");
 
     public final String display;
     public final Material icon;

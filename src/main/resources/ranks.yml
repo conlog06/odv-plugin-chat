@@ -1,0 +1,82 @@
+# ==============================================================
+#  Rangsystem – Prefix in Chat, Tab und über dem Kopf (Lobby)
+#  Rang vergeben:  /rank set <Spieler> <rang>   (auch aus der Konsole)
+#  weight: höher = weiter oben im Tab und in der Teamliste
+#  staff: true = erscheint in /teamliste, darf Staff-Chat (#Nachricht)
+#  color: black, dark_blue, dark_green, dark_aqua, dark_red, dark_purple, gold, gray,
+#         dark_gray, blue, green, aqua, red, light_purple, yellow, white
+# ==============================================================
+
+default-rank: spieler
+
+ranks:
+  owner:
+    name: "Owner"
+    prefix: "&4&lOwner &8| &4"
+    color: dark_red
+    weight: 100
+    staff: true
+    permissions: [odv.admin, odv.rank, odv.staff, odv.mute, odv.bypass]
+  admin:
+    name: "Administrator"
+    prefix: "&c&lAdmin &8| &c"
+    color: red
+    weight: 90
+    staff: true
+    permissions: [odv.admin, odv.rank, odv.staff, odv.mute, odv.bypass]
+  srdev:
+    name: "SrDeveloper"
+    prefix: "&b&lSrDev &8| &b"
+    color: aqua
+    weight: 80
+    staff: true
+    permissions: [odv.admin, odv.staff, odv.bypass]
+  dev:
+    name: "Developer"
+    prefix: "&3&lDev &8| &3"
+    color: dark_aqua
+    weight: 70
+    staff: true
+    permissions: [odv.staff, odv.bypass]
+  srmod:
+    name: "SrModerator"
+    prefix: "&6&lSrMod &8| &6"
+    color: gold
+    weight: 60
+    staff: true
+    permissions: [odv.staff, odv.mute, odv.bypass]
+  mod:
+    name: "Moderator"
+    prefix: "&e&lMod &8| &e"
+    color: yellow
+    weight: 50
+    staff: true
+    permissions: [odv.staff, odv.mute, odv.bypass]
+  builder:
+    name: "Builder"
+    prefix: "&2&lBuilder &8| &2"
+    color: dark_green
+    weight: 40
+    staff: true
+    permissions: [odv.staff, odv.bypass]
+  content:
+    name: "Content"
+    prefix: "&d&lContent &8| &d"
+    color: light_purple
+    weight: 30
+    staff: true
+    permissions: [odv.staff]
+  premium:
+    name: "Premium"
+    prefix: "&6Premium &8| &6"
+    color: gold
+    weight: 10
+    staff: false
+    permissions: [odv.bypass.slowmode]
+  spieler:
+    name: "Spieler"
+    prefix: "&7"
+    color: gray
+    weight: 0
+    staff: false
+    permissions: []

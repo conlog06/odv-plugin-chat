@@ -347,9 +347,9 @@ public class SetupGui implements InventoryHolder {
     }
 
     private void scenarios() {
-        int[] slots = {19, 20, 21, 22, 23, 24, 25, 31};
+        int[] slots = {19, 20, 21, 22, 23, 24, 25, 29, 30, 31, 32, 33};
         Scenario[] all = Scenario.values();
-        for (int i = 0; i < all.length; i++) {
+        for (int i = 0; i < all.length && i < slots.length; i++) {
             Scenario sc = all[i];
             toggle(slots[i], sc.icon, sc.display, () -> s().has(sc), b -> {
                 if (b) s().scenarios.add(sc);

@@ -86,13 +86,21 @@ public class GameListener implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
-        e.joinMessage(game().getState().isLobby() ? Txt.c("§8[§a+§8] §7" + p.getName()) : null);
+        e.joinMessage(null);
         game().onJoin(p);
+        // Rang wird asynchron geladen -> Nachricht kurz danach mit richtigem Prefix
+        if (game().getState().isLobby()) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (p.isOnline()) Bukkit.broadcast(Txt.c("§8[§a+§8] " + plugin.ranks().of(p).prefix() + p.getName()));
+            }, 10L);
+        }
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        e.quitMessage(game().getState().isLobby() ? Txt.c("§8[§c-§8] §7" + e.getPlayer().getName()) : null);
+        e.quitMessage(game().getState().isLobby() ? Txt.c("§8[§c-§8] " + plugin.ranks().of(e.getPlayer()).prefix() + e.getPlayer().getName()) : null);
+        lastChat.remove(e.getPlayer().getUniqueId());
+        lastMessage.remove(e.getPlayer().getUniqueId());
         game().onQuit(e.getPlayer());
         Menus.refreshAllTeams(plugin);
     }
@@ -203,6 +211,7 @@ public class GameListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onMove(PlayerMoveEvent e) {
+        if (!e.hasChangedPosition()) return; // nur Kopf gedreht -> nichts zu tun (spart viel CPU)
         Player p = e.getPlayer();
         Location from = e.getFrom(), to = e.getTo();
         if (game().getState() == GameState.FREEZE && game().isAlive(p)) {
@@ -215,7 +224,7 @@ public class GameListener implements Listener {
             return;
         }
         // Von der Lobby-Insel gefallen?
-        if (from.getBlockY() == to.getBlockY()) return;
+        if (!e.hasChangedBlock() || from.getBlockY() == to.getBlockY()) return;
         Location lobby = plugin.arena().getLobby();
         if (lobby == null || p.getGameMode() == GameMode.SPECTATOR || builder(p) || !p.getWorld().equals(lobby.getWorld())) return;
         boolean inLobbyPhase = locked() && !game().isAlive(p);
@@ -227,7 +236,7 @@ public class GameListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onPortal(PlayerPortalEvent e) {
-        if (!game().isPlaying(e.getPlayer()) || !plugin.settings().nether) {
+        if (!game().isPlaying(e.getPlayer()) || !plugin.settings().nether || game().isNetherClosed()) {
             e.setCancelled(true);
             Txt.actionBar(e.getPlayer(), "§cDas Netherportal ist gerade gesperrt.");
         }
@@ -346,8 +355,42 @@ public class GameListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onChat(AsyncChatEvent e) {
         Player p = e.getPlayer();
-        MTeam team = plugin.teams().getTeam(p);
         String msg = Txt.plain(e.message());
+        var rank = plugin.ranks().of(p);
+
+        // Staff-Chat: "#Nachricht"
+        if (msg.startsWith("#") && msg.length() > 1 && plugin.ranks().isStaff(p)) {
+            e.setCancelled(true);
+            plugin.command().staffChat(p, msg.substring(1).trim());
+            return;
+        }
+        // Mute
+        long muted = plugin.ranks().mutedUntil(p.getUniqueId());
+        if (muted > 0) {
+            e.setCancelled(true);
+            Txt.send(p, plugin.settings().prefix + "§cDu bist noch §e" + Txt.time((int) ((muted - System.currentTimeMillis()) / 1000)) + " §cgemutet.");
+            return;
+        }
+        // Slowmode + Spam-Schutz (Team-Ränge & Premium ausgenommen)
+        if (!p.hasPermission("odv.bypass") && !p.hasPermission("odv.bypass.slowmode")) {
+            long now = System.currentTimeMillis();
+            Long last = lastChat.get(p.getUniqueId());
+            if (plugin.settings().chatSlowmode > 0 && last != null && now - last < plugin.settings().chatSlowmode * 1000L) {
+                e.setCancelled(true);
+                Txt.send(p, plugin.settings().prefix + "§cBitte warte kurz, bevor du wieder schreibst.");
+                return;
+            }
+            if (msg.equalsIgnoreCase(lastMessage.get(p.getUniqueId()))) {
+                e.setCancelled(true);
+                Txt.send(p, plugin.settings().prefix + "§cBitte nicht dieselbe Nachricht wiederholen.");
+                return;
+            }
+            lastChat.put(p.getUniqueId(), now);
+            lastMessage.put(p.getUniqueId(), msg);
+        }
+
+        MTeam team = plugin.teams().getTeam(p);
+        // Teamchat: "@Nachricht"
         if (msg.startsWith("@") && msg.length() > 1 && team != null && !plugin.settings().isSolo()) {
             e.setCancelled(true);
             Component out = Txt.c("§8[§bTeam§8] " + team.getColor() + p.getName() + " §8» §f").append(Component.text(msg.substring(1).trim()));
@@ -358,9 +401,12 @@ public class GameListener implements Listener {
             return;
         }
         boolean spectator = !game().getState().isLobby() && !game().isAlive(p);
-        String prefix = spectator ? "§7[Zuschauer] §7" : team != null && !plugin.settings().isSolo() ? team.getColor() + "[" + team.getName() + "] " : "§f";
-        if (p.hasPermission("odv.admin")) prefix = "§c[A] " + prefix;
-        Component pre = Txt.c(prefix);
-        e.renderer((source, name, message, viewer) -> pre.append(Component.text(source.getName())).append(Txt.c(" §8» §f")).append(message));
+        String teamTag = game().getState().isLobby() || team == null || plugin.settings().isSolo() ? "" : team.getColor() + "[" + team.getNumber() + "] ";
+        Component pre = Txt.c((spectator ? "§7[Zuschauer] " : teamTag) + rank.prefix());
+        Component sep = Txt.c(" §8» " + (rank.staff() ? "§f" : "§7"));
+        e.renderer((source, name, message, viewer) -> pre.append(Component.text(source.getName())).append(sep).append(message));
     }
+
+    private final java.util.Map<UUID, Long> lastChat = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<UUID, String> lastMessage = new java.util.concurrent.ConcurrentHashMap<>();
 }

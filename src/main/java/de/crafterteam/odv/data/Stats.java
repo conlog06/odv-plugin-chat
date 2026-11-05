@@ -128,6 +128,26 @@ public class Stats {
         }
     }
 
+    /** SQL-Aufgabe im DB-Thread (für Ränge, Mutes …). */
+    public interface SqlTask {
+        void run(Connection c) throws SQLException;
+    }
+
+    public void async(SqlTask task) {
+        db.execute(() -> {
+            try {
+                task.run(conn());
+            } catch (SQLException e) {
+                plugin.getLogger().warning("Datenbank: " + e.getMessage());
+            }
+        });
+    }
+
+    /** Tabellen-Präfix der aktiven Datenbank. */
+    public String tablePrefix() {
+        return mysql ? plugin.settings().dbPrefix : "odv_";
+    }
+
     public boolean isMysql() {
         return mysql;
     }

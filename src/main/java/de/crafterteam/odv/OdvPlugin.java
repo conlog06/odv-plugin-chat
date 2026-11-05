@@ -41,6 +41,8 @@ public class OdvPlugin extends JavaPlugin {
     private GameManager game;
     private Wand wand;
     private OdvCommand command;
+    private de.crafterteam.odv.data.RankManager ranks;
+    private de.crafterteam.odv.util.Discord discord;
 
     @Override
     public void onEnable() {
@@ -51,6 +53,10 @@ public class OdvPlugin extends JavaPlugin {
         holograms = new Holograms(this);
         stats = new Stats(this);
         stats.open();
+        ranks = new de.crafterteam.odv.data.RankManager(this);
+        ranks.load();
+        ranks.openTable();
+        discord = new de.crafterteam.odv.util.Discord(this);
         combat = new CombatManager(this);
         spawns = new SpawnManager(this);
         arena = new Arena(this);
@@ -66,7 +72,7 @@ public class OdvPlugin extends JavaPlugin {
         wand = new Wand(this);
         command = new OdvCommand(this);
 
-        for (String c : new String[]{"odv", "team", "practice", "szenarios", "backpack", "ping"}) {
+        for (String c : new String[]{"odv", "team", "practice", "szenarios", "backpack", "ping", "coords", "lb", "teamliste", "changelog", "rank", "sc", "mute", "unmute"}) {
             var pc = getCommand(c);
             if (pc != null) {
                 pc.setExecutor(command);
@@ -103,6 +109,7 @@ public class OdvPlugin extends JavaPlugin {
 
     public void reloadAll() {
         settings.load();
+        ranks.load();
         arena.load();
         kits.load();
         teams.reset();
@@ -127,4 +134,6 @@ public class OdvPlugin extends JavaPlugin {
     public GameManager game() { return game; }
     public Wand wand() { return wand; }
     public OdvCommand command() { return command; }
+    public de.crafterteam.odv.data.RankManager ranks() { return ranks; }
+    public de.crafterteam.odv.util.Discord discord() { return discord; }
 }

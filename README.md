@@ -1,7 +1,7 @@
-# ODVMeetup 3.0 – ODV & Meetup für Paper 26.3
+# ODVMeetup 3.1 – ODV & Meetup für Paper 26.3
 
 ## ⬇️ Download
-**[ODVMeetup-3.0.1.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.0.1.jar)**
+**[ODVMeetup-3.1.0.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.1.0.jar)**
 · alle Versionen unter [Releases](https://github.com/conlog06/odv-plugin-chat/releases)
 
 Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite-Treiber bringt Paper mit).
@@ -44,6 +44,18 @@ CutClean · BowLess · Triple Ores · Timebomb · Xtra Apples · Timber · RodLe
 
 Dazu: **Practice-Arena** in der Lobby (`/practice`), Bossbar mit Timern, Scoreboard wie Mega-ODV, Hologramme mit Top-5.
 
+## Rangsystem
+Eigene Ränge ohne LuckPerms: Prefix in **Chat, Tab und über dem Kopf**, Tab nach Rang sortiert, Rechte pro Rang.
+Vorgegeben (aus eurer Teamliste): Owner, Administrator, SrDeveloper, Developer, SrModerator, Moderator, Builder,
+Content, Premium, Spieler – alles in `plugins/ODVMeetup/ranks.yml` anpassbar. Gespeichert in SQLite oder MySQL.
+
+```
+/rank set Joniwoch owner      (geht auch in der Konsole)
+/teamliste                    Teamliste wie im Discord, automatisch aus den Rängen
+#Nachricht  oder  /sc         Staff-Chat
+/mute <Spieler> [Min]         Chat-Slowmode & Spam-Schutz sind eingebaut
+```
+
 ## Speicher & Anti-Xray
 - Statistik **lokal (SQLite)** oder **MySQL** – `storage.type` in der config.yml.
 - **Anti-Xray**: eigene Erkennung (meldet Admins auffälliges Abbauen, `/odv xray`) + Paper-Anti-Xray per Klick aktivierbar.
@@ -52,7 +64,8 @@ Dazu: **Practice-Arena** in der Lobby (`/practice`), Bossbar mit Timern, Scorebo
 ## Befehle
 | Spieler | |
 |---|---|
-| `/team` · `/practice` · `/szenarios` · `/backpack` · `/ping` | Lobby & Runde |
+| `/team` · `/practice` · `/szenarios` · `/backpack` · `/ping` · `/coords` | Lobby & Runde |
+| `/lb` · `/teamliste` · `/changelog` · `/rank info` | Leaderboard, Team, Neuerungen |
 | `/odv join` · `/odv leave` · `/odv spec` · `/odv bet` | Teilnahme & Zuschauen |
 | `/odv stats [Name]` · `/odv top [kills\|wetten\|practice]` | Statistik |
 
@@ -65,6 +78,8 @@ Dazu: **Practice-Arena** in der Lobby (`/practice`), Bossbar mit Timern, Scorebo
 | `/odv spawns build\|tp\|clear\|undo` | Spawns |
 | `/odv kit save\|give\|reset [meetup\|odv\|practice]` | Kits |
 | `/odv xray [Name]` · `/odv antixray paper` · `/odv supply` · `/odv pregen\|backup\|reload` | Werkzeuge |
+| `/rank set\|remove\|list\|reload` · `/sc` · `/mute` · `/unmute` | Ränge & Moderation |
+| `/odv announce <Text>` · `/odv changelog post` | Chat + Discord-Webhook |
 
 ## Selbst bauen
-`mvn package` (JDK 21+) → `target/ODVMeetup-3.0.1.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.
+`mvn package` (JDK 21+) → `target/ODVMeetup-3.1.0.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.

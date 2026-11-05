@@ -24,7 +24,7 @@ import java.util.function.Consumer;
 /** Teams, Zuschauer, Wetten und Szenario-Übersicht – kleine Klick-Menüs. */
 public class Menus implements InventoryHolder {
 
-    public enum Kind { TEAMS, SPECTATE, BET, SCENARIOS }
+    public enum Kind { TEAMS, SPECTATE, BET, SCENARIOS, LEADERBOARD }
 
     private final OdvPlugin plugin;
     private final Kind kind;
@@ -148,6 +148,10 @@ public class Menus implements InventoryHolder {
             Txt.send(p, plugin.settings().prefix + "§cNur für Zuschauer.");
             return;
         }
+        if (plugin.settings().spectatorRadius > 0 && !p.hasPermission("odv.staff")) {
+            Txt.send(p, plugin.settings().prefix + "§7Zuschauer bleiben im Spawnbereich §8(" + plugin.settings().spectatorRadius + " Blöcke)§7.");
+            return;
+        }
         Menus m = new Menus(plugin, Kind.SPECTATE, p, 6, "§8» §b§lSpieler beobachten", page);
         List<UUID> alive = new ArrayList<>(plugin.game().getAlive());
         for (int slot = 0; slot < 45; slot++) {
@@ -205,20 +209,55 @@ public class Menus implements InventoryHolder {
     // ================================================================ Szenarien
 
     public static void scenarios(OdvPlugin plugin, Player p) {
-        Menus m = new Menus(plugin, Kind.SCENARIOS, p, 3, "§8» §e§lSzenarien & Features", 0);
+        Menus m = new Menus(plugin, Kind.SCENARIOS, p, 4, "§8» §e§lSzenarien & Features", 0);
         int slot = 0;
         for (Scenario sc : Scenario.values()) {
             boolean on = plugin.settings().has(sc);
             m.set(slot++, plugin.items().of(sc.icon).name((on ? "§a" : "§8") + "§l" + sc.display + (on ? " §a✔" : " §c✘"))
                     .lore("§7" + sc.description).glow(on).build(), null);
         }
-        slot = 9;
+        slot = 18;
         for (Feature f : Feature.values()) {
             if (!plugin.settings().has(f)) continue;
             m.set(slot++, plugin.items().of(f.icon).name("§b§l" + f.display).lore("§7" + f.description).build(), null);
         }
-        m.set(22, plugin.items().of(plugin.settings().oldPvp ? Material.WOODEN_SWORD : Material.NETHERITE_SWORD)
+        m.set(31, plugin.items().of(plugin.settings().oldPvp ? Material.WOODEN_SWORD : Material.NETHERITE_SWORD)
                 .name("§f§lKampf: " + (plugin.settings().oldPvp ? "§a1.8.9-PvP" : "§b26.3-PvP")).build(), null);
         p.openInventory(m.inv);
+    }
+
+    // ================================================================ Leaderboard (/lb)
+
+    private static final String[][] LB = {{"wins", "Siege", "GOLDEN_HELMET"}, {"kills", "Kills", "DIAMOND_SWORD"},
+            {"p_kills", "Practice-Kills", "IRON_SWORD"}, {"bets", "Wettpunkte", "EMERALD"}};
+
+    public static void leaderboard(OdvPlugin plugin, Player p, int category) {
+        String[] cat = LB[Math.floorMod(category, LB.length)];
+        plugin.stats().top(cat[0], 10, list -> {
+            if (!p.isOnline()) return;
+            Menus m = new Menus(plugin, Kind.LEADERBOARD, p, 4, "§8» §6§lLeaderboard §8– §e" + cat[1], category);
+            int[] slots = {4, 12, 13, 14, 19, 20, 21, 22, 23, 24};
+            for (int i = 0; i < list.size() && i < slots.length; i++) {
+                var e = list.get(i);
+                ItemStack head = plugin.items().of(Material.PLAYER_HEAD).name((i == 0 ? "§6§l" : i < 3 ? "§e§l" : "§f") + "#" + (i + 1) + " " + e.getKey())
+                        .lore("§7" + cat[1] + ": §a" + e.getValue()).build();
+                var owner = Bukkit.getOfflinePlayerIfCached(e.getKey()); // kein blockierender Mojang-Lookup
+                if (owner != null) {
+                    SkullMeta meta = (SkullMeta) head.getItemMeta();
+                    meta.setOwningPlayer(owner);
+                    head.setItemMeta(meta);
+                }
+                m.set(slots[i], head, null);
+            }
+            if (list.isEmpty()) m.set(13, plugin.items().of(Material.BARRIER).name("§7Noch keine Einträge").build(), null);
+            m.bottomBar(4);
+            for (int c = 0; c < LB.length; c++) {
+                int cc = c;
+                boolean active = c == Math.floorMod(category, LB.length);
+                m.set(28 + c * 2, plugin.items().of(Material.valueOf(LB[c][2])).name((active ? "§a§l" : "§7") + LB[c][1]).glow(active).build(),
+                        v -> leaderboard(plugin, v, cc));
+            }
+            p.openInventory(m.inv);
+        });
     }
 }

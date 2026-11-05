@@ -71,6 +71,10 @@ public class Settings {
     public final Set<Feature> features = EnumSet.noneOf(Feature.class);
     public int supplyInterval;
 
+    public int spectatorRadius, chatSlowmode;
+    public String discordWebhook;
+    public boolean discordResults;
+
     public boolean backupOnStart;
     public int backupKeep;
 
@@ -152,6 +156,11 @@ public class Settings {
         for (Feature f : Feature.values()) if (c.getBoolean("features." + f.key(), true)) features.add(f);
         supplyInterval = clamp(c.getInt("features.supply-interval", 300), 60, 3600);
 
+        spectatorRadius = clamp(c.getInt("match.spectator-radius", 150), 0, 10000);
+        chatSlowmode = clamp(c.getInt("chat.slowmode", 2), 0, 60);
+        discordWebhook = c.getString("discord.webhook-url", "").trim();
+        discordResults = c.getBoolean("discord.round-results", true);
+
         backupOnStart = c.getBoolean("backup.on-start", true);
         backupKeep = clamp(c.getInt("backup.keep", 10), 1, 100);
     }
@@ -207,6 +216,9 @@ public class Settings {
         c.set("scenarios.xtra-apples-chance", xtraAppleChance);
         for (Feature f : Feature.values()) c.set("features." + f.key(), features.contains(f));
         c.set("features.supply-interval", supplyInterval);
+        c.set("match.spectator-radius", spectatorRadius);
+        c.set("chat.slowmode", chatSlowmode);
+        c.set("discord.round-results", discordResults);
         c.set("backup.on-start", backupOnStart);
         c.set("backup.keep", backupKeep);
         plugin.saveConfig();

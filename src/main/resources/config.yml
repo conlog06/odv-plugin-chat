@@ -27,6 +27,7 @@ match:
   lightning-on-death: true
   nether: true                # Netherportal am Spawn nutzbar
   time-limit: 45              # Minuten bis zum Showdown (Feature)
+  spectator-radius: 150       # Zuschauer bleiben im Spawnbereich (0 = überall); Team-Ränge ausgenommen
   stop-server-on-end: false
 
 combat:
@@ -100,6 +101,14 @@ features:
   betting: true
   practice: true
   supply-interval: 300        # Sekunden
+
+chat:
+  slowmode: 2                 # Sekunden zwischen Nachrichten (Team-Ränge & Premium ausgenommen)
+  # Staff-Chat: Nachricht mit # beginnen oder /sc
+
+discord:
+  webhook-url: ""             # Discord-Webhook für Rundenergebnisse & /odv changelog post
+  round-results: true
 
 backup:
   on-start: true

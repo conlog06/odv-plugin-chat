@@ -66,6 +66,45 @@ public class OdvCommand implements TabExecutor {
                 if (p != null) plugin.features().ping(p);
                 return true;
             }
+            case "coords" -> {
+                if (p != null) coords(p);
+                return true;
+            }
+            case "lb" -> {
+                if (p != null) Menus.leaderboard(plugin, p, 0);
+                return true;
+            }
+            case "teamliste" -> {
+                plugin.ranks().teamList(sender);
+                return true;
+            }
+            case "changelog" -> {
+                showChangelog(sender, args.length >= 1 ? parse(args[0], 1) : 1);
+                return true;
+            }
+            case "sc" -> {
+                if (!(p == null || plugin.ranks().isStaff(p))) {
+                    tell(sender, "§cNur für Team-Mitglieder.");
+                } else if (args.length == 0) {
+                    tell(sender, "§e/sc <Nachricht> §7oder §e#Nachricht §7im Chat");
+                } else staffChat(sender, String.join(" ", args));
+                return true;
+            }
+            case "mute", "unmute" -> {
+                if (!sender.hasPermission("odv.mute")) {
+                    tell(sender, "§cKeine Berechtigung.");
+                } else if (args.length == 0) {
+                    tell(sender, "§e/mute <Spieler> [Minuten] §8| §e/unmute <Spieler>");
+                } else {
+                    int min = cmd.getName().equalsIgnoreCase("unmute") ? 0 : args.length >= 2 ? Math.max(1, parse(args[1], 10)) : 10;
+                    plugin.ranks().mute(sender, args[0], min);
+                }
+                return true;
+            }
+            case "rank" -> {
+                rank(sender, args);
+                return true;
+            }
             default -> {
             }
         }
@@ -204,6 +243,24 @@ public class OdvCommand implements TabExecutor {
             }
             case "schem", "schematic" -> schem(sender, p, args);
             case "spawns" -> spawns(sender, p, args);
+            case "announce" -> {
+                if (args.length < 2) {
+                    tell(sender, "§e/odv announce <Text> §7– Chat + Discord");
+                } else {
+                    String text = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+                    for (Player o : Bukkit.getOnlinePlayers()) {
+                        Txt.title(o, "§6§lAnkündigung", "§f" + text);
+                    }
+                    plugin.game().broadcast("§6§lAnkündigung: §f" + text);
+                    if (plugin.discord().enabled()) plugin.discord().announce(text, sender);
+                }
+            }
+            case "changelog" -> {
+                if (args.length >= 2 && args[1].equalsIgnoreCase("post")) {
+                    var v = changelog().get(0);
+                    plugin.discord().changelog(v.getKey(), v.getValue(), sender);
+                } else showChangelog(sender, 1);
+            }
             case "supply" -> {
                 if (plugin.game().getState().isIngame()) plugin.features().supplyDrop();
                 else tell(sender, "§cNur während einer Runde.");
@@ -388,6 +445,113 @@ public class OdvCommand implements TabExecutor {
         }
     }
 
+    // ------------------------------------------------------------ Rang / Staff / Coords / Changelog
+
+    private void rank(CommandSender sender, String[] args) {
+        String a = args.length == 0 ? "info" : args[0].toLowerCase(Locale.ROOT);
+        switch (a) {
+            case "set" -> {
+                if (!sender.hasPermission("odv.rank")) {
+                    tell(sender, "§cKeine Berechtigung.");
+                } else if (args.length < 3) {
+                    tell(sender, "§e/rank set <Spieler> <Rang>");
+                } else plugin.ranks().set(sender, args[1], args[2]);
+            }
+            case "remove" -> {
+                if (!sender.hasPermission("odv.rank")) tell(sender, "§cKeine Berechtigung.");
+                else if (args.length < 2) tell(sender, "§e/rank remove <Spieler>");
+                else plugin.ranks().set(sender, args[1], plugin.ranks().all().keySet().stream()
+                            .reduce((x, y) -> y).orElse("spieler")); // niedrigster Rang
+            }
+            case "list" -> {
+                Txt.send(sender, "§8§m        §r §b§lRänge §8§m        ");
+                plugin.ranks().ranksList(line -> Txt.send(sender, line));
+            }
+            case "reload" -> {
+                if (!sender.hasPermission("odv.rank")) {
+                    tell(sender, "§cKeine Berechtigung.");
+                    return;
+                }
+                plugin.ranks().load();
+                for (Player o : Bukkit.getOnlinePlayers()) {
+                    plugin.ranks().apply(o);
+                    plugin.game().onRankChanged(o);
+                }
+                tell(sender, "§aranks.yml neu geladen.");
+            }
+            default -> {
+                Player t = args.length >= 2 ? Bukkit.getPlayerExact(args[1]) : sender instanceof Player pl ? pl : null;
+                if (t == null) {
+                    tell(sender, "§e/rank info <Spieler> §8| §e/rank list §8| §e/rank set <Spieler> <Rang> §8| §e/rank remove <Spieler>");
+                    return;
+                }
+                var r = plugin.ranks().of(t);
+                tell(sender, "§f" + t.getName() + " §7hat den Rang " + r.prefix() + r.name() + (r.staff() ? " §8(Team)" : ""));
+            }
+        }
+    }
+
+    public void staffChat(CommandSender from, String msg) {
+        String name = from instanceof Player p ? plugin.ranks().of(p).prefix() + p.getName() : "§4Konsole";
+        var out = Txt.c("§8[§c§lStaff§8] " + name + " §8» §f").append(net.kyori.adventure.text.Component.text(msg));
+        for (Player o : Bukkit.getOnlinePlayers()) if (plugin.ranks().isStaff(o)) o.sendMessage(out);
+        plugin.getLogger().info("[Staff] " + Txt.ascii(name) + ": " + msg);
+    }
+
+    private void coords(Player p) {
+        if (!plugin.game().isPlaying(p)) {
+            tell(p, "§cNur für lebende Spieler in einer Runde.");
+            return;
+        }
+        MTeam t = plugin.teams().getTeam(p);
+        Location l = p.getLocation();
+        String world = switch (l.getWorld().getEnvironment()) {
+            case NETHER -> "§cNether";
+            case THE_END -> "§5End";
+            default -> "§aOberwelt";
+        };
+        String msg = "§8[§bCoords§8] " + (t != null ? t.getColor() : "§f") + p.getName() + " §8» §e"
+                + l.getBlockX() + " " + l.getBlockY() + " " + l.getBlockZ() + " §8(" + world + "§8)";
+        if (t == null || s().isSolo()) {
+            Txt.send(p, msg);
+            return;
+        }
+        for (java.util.UUID u : t.getMembers()) {
+            Player o = Bukkit.getPlayer(u);
+            if (o != null) Txt.send(o, msg);
+        }
+    }
+
+    /** Changelog: eigene Datei in plugins/ODVMeetup/changelog.yml, sonst die mitgelieferte. */
+    private List<Map.Entry<String, List<String>>> changelog() {
+        org.bukkit.configuration.file.YamlConfiguration y;
+        File f = new File(plugin.getDataFolder(), "changelog.yml");
+        if (f.isFile()) y = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(f);
+        else {
+            var in = plugin.getResource("changelog.yml");
+            y = in == null ? new org.bukkit.configuration.file.YamlConfiguration()
+                    : org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
+        }
+        List<Map.Entry<String, List<String>>> out = new ArrayList<>();
+        for (Map<?, ?> m : y.getMapList("versions")) {
+            Object v = m.get("version"), d = m.get("date"), c = m.get("changes");
+            List<String> changes = new ArrayList<>();
+            if (c instanceof List<?> l) for (Object o : l) changes.add(String.valueOf(o));
+            out.add(new java.util.AbstractMap.SimpleEntry<>(v + (d != null ? " – " + d : ""), changes));
+        }
+        if (out.isEmpty()) out.add(new java.util.AbstractMap.SimpleEntry<>(plugin.getPluginMeta().getVersion(), List.of("Keine Einträge")));
+        return out;
+    }
+
+    private void showChangelog(CommandSender to, int count) {
+        List<Map.Entry<String, List<String>>> all = changelog();
+        for (int i = 0; i < Math.min(Math.max(1, count), all.size()); i++) {
+            Txt.send(to, "§8§m      §r §b§lChangelog §7[" + all.get(i).getKey() + "] §8§m      ");
+            for (String c : all.get(i).getValue()) Txt.send(to, " §8• §7" + c);
+        }
+        if (all.size() > 1 && count <= 1) Txt.send(to, "§8Ältere Versionen: §7/changelog " + all.size());
+    }
+
     private boolean needPlayer(CommandSender s) {
         if (s instanceof Player) return true;
         s.sendMessage("Nur ingame.");
@@ -413,7 +577,8 @@ public class OdvCommand implements TabExecutor {
         Txt.send(s, "§b/team §7[Nr|random|leave] §8| §b/practice §8| §b/szenarios");
         Txt.send(s, "§b/odv join §8| §b/odv leave §8| §b/odv spec §8| §b/odv bet");
         Txt.send(s, "§b/odv stats §7[Name] §8| §b/odv top §7[kills|wetten|practice]");
-        Txt.send(s, "§b/ping §7oder §bSchleichen + F §8| §b/backpack");
+        Txt.send(s, "§b/ping §7oder §bSchleichen + F §8| §b/backpack §8| §b/coords §8| §b/lb");
+        Txt.send(s, "§b/teamliste §8| §b/changelog §8| §b/rank info");
         if (s.hasPermission("odv.admin")) {
             Txt.send(s, "§c/odv §8- §7Setup-Menü §8| §c/odv quick §8- §7Schnellsetup");
             Txt.send(s, "§c/odv start §7[Sek] §8| §c/odv stop §8| §c/odv host §8| §c/odv preset odv|meetup");
@@ -421,6 +586,7 @@ public class OdvCommand implements TabExecutor {
             Txt.send(s, "§c/odv wand §8→ §c/odv schem save <Name> §8| §c/odv schem list|paste|delete");
             Txt.send(s, "§c/odv spawns build|tp|clear|undo §8| §c/odv kit save|give|reset §7[typ]");
             Txt.send(s, "§c/odv xray §7[Name] §8| §c/odv antixray paper §8| §c/odv supply §8| §c/odv pregen|backup|reload");
+            Txt.send(s, "§c/rank set <Spieler> <Rang> §8| §c/sc §7oder §c#Text §8| §c/mute §8| §c/odv announce §8| §c/odv changelog post");
         }
     }
 
@@ -434,11 +600,18 @@ public class OdvCommand implements TabExecutor {
                 o.add("leave");
                 for (MTeam t : plugin.teams().getTeams()) o.add(String.valueOf(t.getNumber()));
             }
+        } else if (c.equals("rank")) {
+            if (args.length == 1) o.addAll(List.of("info", "list", "set", "remove", "reload"));
+            else if (args.length == 2) Bukkit.getOnlinePlayers().forEach(pl -> o.add(pl.getName()));
+            else if (args.length == 3 && args[0].equalsIgnoreCase("set")) o.addAll(plugin.ranks().all().keySet());
+        } else if (c.equals("mute") || c.equals("unmute")) {
+            if (args.length == 1) Bukkit.getOnlinePlayers().forEach(pl -> o.add(pl.getName()));
         } else if (c.equals("odv")) {
             if (args.length == 1) {
                 o.addAll(List.of("help", "teams", "join", "leave", "spec", "bet", "stats", "top"));
                 if (sender.hasPermission("odv.admin")) o.addAll(List.of("setup", "quick", "start", "stop", "host", "preset", "setlobby",
-                        "setcenter", "setpractice", "build", "kit", "wand", "schem", "spawns", "supply", "xray", "antixray", "pregen", "backup", "reload"));
+                        "setcenter", "setpractice", "build", "kit", "wand", "schem", "spawns", "supply", "xray", "antixray", "pregen", "backup", "reload",
+                        "announce", "changelog"));
             } else if (args.length == 2) {
                 switch (args[0].toLowerCase(Locale.ROOT)) {
                     case "preset" -> o.addAll(List.of("odv", "meetup"));

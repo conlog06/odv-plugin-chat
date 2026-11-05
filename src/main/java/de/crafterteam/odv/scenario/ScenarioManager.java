@@ -134,6 +134,17 @@ public class ScenarioManager implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDrop(BlockDropItemEvent e) {
+        Material type = e.getBlockState().getType();
+        if (on(Scenario.DIAMONDLESS) && (type == Material.DIAMOND_ORE || type == Material.DEEPSLATE_DIAMOND_ORE)) {
+            e.getItems().forEach(Item::remove);
+            e.getItems().clear();
+            return;
+        }
+        if (on(Scenario.GOLDLESS) && (type == Material.GOLD_ORE || type == Material.DEEPSLATE_GOLD_ORE || type == Material.NETHER_GOLD_ORE)) {
+            e.getItems().forEach(Item::remove);
+            e.getItems().clear();
+            return;
+        }
         boolean cut = on(Scenario.CUTCLEAN), triple = on(Scenario.TRIPLE_ORES);
         if (!cut && !triple) return;
         Material broken = e.getBlockState().getType();
@@ -249,6 +260,13 @@ public class ScenarioManager implements Listener {
     }
 
     // ============================================================ Timebomb
+
+    @EventHandler
+    public void onLessDeath(PlayerDeathEvent e) {
+        if (!plugin.game().isPlaying(e.getEntity())) return;
+        if (on(Scenario.DIAMONDLESS)) e.getDrops().add(new ItemStack(Material.DIAMOND, 1));
+        if (on(Scenario.GOLDLESS)) e.getDrops().add(new ItemStack(Material.GOLD_INGOT, 4));
+    }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerDeath(PlayerDeathEvent e) {

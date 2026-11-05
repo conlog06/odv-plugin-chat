@@ -26,6 +26,8 @@ public class Sidebar {
     private int shown;
     private String title = "";
     private final java.util.Map<String, String> lastPrefix = new java.util.HashMap<>();
+    private final String[] cache = new String[MAX];
+    private int tagSignature = Integer.MIN_VALUE;
 
     public Sidebar(Player player, String title) {
         board = Bukkit.getScoreboardManager().getNewScoreboard();
@@ -47,15 +49,33 @@ public class Sidebar {
         }
     }
 
+    /** Schickt nur Zeilen, die sich seit dem letzten Aufruf geändert haben. */
     public void setLines(List<String> lines) {
         int size = Math.min(MAX, lines.size());
         for (int i = 0; i < size; i++) {
-            Score sc = objective.getScore("l" + i);
-            sc.customName(Txt.c(lines.get(i)));
-            sc.setScore(size - i);
+            String text = lines.get(i);
+            boolean sizeChanged = size != shown;
+            if (!text.equals(cache[i]) || sizeChanged) {
+                Score sc = objective.getScore("l" + i);
+                if (!text.equals(cache[i])) {
+                    sc.customName(Txt.c(text));
+                    cache[i] = text;
+                }
+                if (sizeChanged || !sc.isScoreSet()) sc.setScore(size - i);
+            }
         }
-        for (int i = size; i < shown; i++) board.resetScores("l" + i);
+        for (int i = size; i < shown; i++) {
+            board.resetScores("l" + i);
+            cache[i] = null;
+        }
         shown = size;
+    }
+
+    /** Nametags nur neu setzen, wenn sich etwas geändert hat. */
+    public void setNametagsIfChanged(int signature, Map<String, NamedTextColor> colors, Map<String, String> prefixes, Map<String, Set<String>> members) {
+        if (signature == tagSignature) return;
+        tagSignature = signature;
+        setNametags(colors, prefixes, members);
     }
 
     /** Nametag-Teams: key -> (Farbe, Prefix, Spieler). */

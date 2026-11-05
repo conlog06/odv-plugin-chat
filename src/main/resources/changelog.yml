@@ -1,0 +1,23 @@
+# Wird mit /changelog angezeigt und mit /odv changelog post an Discord geschickt.
+# Neueste Version oben. Eigene Einträge einfach ergänzen.
+versions:
+  - version: "3.1.0"
+    date: "05.11.2026"
+    changes:
+      - "Eigenes Rangsystem mit Prefix in Chat, Tab und über dem Kopf (/rank, /teamliste)"
+      - "Staff-Chat (#Nachricht oder /sc), /mute, Chat-Slowmode"
+      - "Der Nether schließt automatisch, sobald die Border schrumpft (ODV)"
+      - "Zuschauer bleiben im Spawnbereich (ODV)"
+      - "/coords schickt deine Koordinaten an dein Team"
+      - "Leaderboard-Menü /lb"
+      - "Neue Szenarien: Diamondless und Goldless"
+      - "Rundenergebnisse automatisch im Discord"
+      - "Performance: Scoreboard, Tab und Nametags senden nur noch Änderungen"
+  - version: "3.0.1"
+    date: "02.11.2026"
+    changes:
+      - "Absturz im Scoreboard behoben"
+  - version: "3.0.0"
+    date: "02.11.2026"
+    changes:
+      - "Update auf Paper 26.3 mit Varo-Spawns, Szenarien, altem PvP, MySQL und Anti-Xray"

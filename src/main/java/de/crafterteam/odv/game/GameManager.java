@@ -60,7 +60,10 @@ public class GameManager {
     private int countdown, phase, elapsed, shrinkTotal;
     private boolean forced, shrinking, testRound, showdownDone;
     private UUID host;
-    private boolean displayErrorLogged;
+    private boolean displayErrorLogged, barShown, netherClosed;
+    private int displayTick;
+    private String date;
+    private final Map<UUID, String> lastTab = new HashMap<>(), lastListName = new HashMap<>();
     private int aliveAtShrink;
 
     private final Set<UUID> alive = new HashSet<>();
@@ -158,7 +161,10 @@ public class GameManager {
             case PROTECTION -> {
                 elapsed++;
                 phase--;
-                if (phase == 60 || phase == 30 || phase == 10 || (phase <= 3 && phase > 0)) broadcast("§7PvP in §e" + Txt.time(phase) + "§7.");
+                if ((phase % 60 == 0 && phase > 0) || phase == 30 || phase == 10 || (phase <= 3 && phase > 0)) {
+                    broadcast("§7PvP in §e" + Txt.time(phase) + "§7.");
+                    sound(Sound.BLOCK_ANVIL_LAND, phase <= 3 ? 1.4f : 1f);
+                }
                 if (phase <= 0) {
                     state = GameState.RUNNING;
                     broadcast("§c§lDie Schutzzeit ist vorbei – PvP ist aktiv!");
@@ -184,6 +190,7 @@ public class GameManager {
     }
 
     private void tickRunning() {
+        limitSpectators();
         for (UUID id : new ArrayList<>(disconnected.keySet())) {
             int left = disconnected.get(id) - 1;
             if (left > 0) {
@@ -205,6 +212,7 @@ public class GameManager {
     }
 
     private void startShrink(int seconds) {
+        closeNether("Die Border schrumpft");
         shrinking = true;
         shrinkTotal = seconds;
         aliveAtShrink = Math.max(1, alive.size());
@@ -248,6 +256,7 @@ public class GameManager {
             Txt.title(p, "§4§lSHOWDOWN", "§7Nur einer kommt hier raus");
         }
         w.getWorldBorder().setSize(Math.max(s().borderFinal, 2 * r + 20));
+        closeNether("Showdown");
         shrinking = true;
         sound(Sound.ENTITY_WITHER_DEATH, 0.7f);
     }
@@ -358,6 +367,8 @@ public class GameManager {
         plugin.scenarios().onRoundStart();
         plugin.features().onRoundStart();
         plugin.antiXray().reset();
+        netherClosed = false;
+        if (world != null) world.setGameRule(GameRules.SPAWN_MOBS, true);
         broadcast("§a" + alive.size() + " Spieler §7in §a" + teams.size() + (s().isSolo() ? "" : " Teams") + " §7– viel Glück!"
                 + (testRound ? " §8(Testrunde – endet mit /odv stop)" : ""));
         if (!s().scenarios.isEmpty()) broadcast("§7Szenarien: §e" + plugin.scenarios().activeList());
@@ -459,6 +470,7 @@ public class GameManager {
             p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
         }
         plugin.features().onRoundEnd(winner);
+        plugin.discord().roundResult(winner, title, topKillers(3), elapsed);
         if (winner != null) {
             new BukkitRunnable() {
                 int i = 0;
@@ -504,7 +516,7 @@ public class GameManager {
 
     public void resetToLobby() {
         state = GameState.LOBBY;
-        forced = testRound = shrinking = showdownDone = false;
+        forced = testRound = shrinking = showdownDone = netherClosed = false;
         alive.clear();
         kills.clear();
         deathLocations.clear();
@@ -531,6 +543,8 @@ public class GameManager {
     public void onJoin(Player p) {
         plugin.stats().load(p);
         boards.put(p.getUniqueId(), new Sidebar(p, s().mode.title));
+        plugin.ranks().load(p);
+        if (barShown) p.showBossBar(bar);
         UUID id = p.getUniqueId();
         if (state.isIngame() && alive.contains(id) && disconnected.containsKey(id)) {
             disconnected.remove(id);
@@ -574,6 +588,9 @@ public class GameManager {
             }
         }
         plugin.stats().unload(id);
+        plugin.ranks().unload(p);
+        lastTab.remove(id);
+        lastListName.remove(id);
     }
 
     public void toggleParticipation(Player p) {
@@ -607,6 +624,8 @@ public class GameManager {
         w.setGameRule(GameRules.IMMEDIATE_RESPAWN, true);
         w.setGameRule(GameRules.SHOW_DEATH_MESSAGES, false);
         w.setPVP(true);
+        // Ressourcen sparen: in der Lobby keine Mobs in der Arena-Welt
+        w.setGameRule(GameRules.SPAWN_MOBS, state.isIngame());
         plugin.combat().prepareAll();
     }
 
@@ -727,60 +746,66 @@ public class GameManager {
     // ===================================================================== Anzeige
 
     private void updateDisplays() {
+        displayTick++;
         World w = arena().getWorld();
         int border = w == null ? s().borderInitial : (int) w.getWorldBorder().getSize();
         String time = Txt.time(elapsed);
+        var online = Bukkit.getOnlinePlayers();
 
-        // Bossbar
+        // ---------------- Bossbar (nur bei Zustandswechsel ein-/ausblenden)
         if (state == GameState.STARTING) bar(("§7Start in §a" + countdown + "s"), countdown / (float) Math.max(1, s().countdown), BossBar.Color.GREEN);
         else if (state == GameState.FREEZE) bar("§eGleich geht's los...", 1f, BossBar.Color.YELLOW);
         else if (state == GameState.PROTECTION) bar("§7PvP in §e" + Txt.time(phase), phase / (float) Math.max(1, s().grace), BossBar.Color.YELLOW);
         else if (state == GameState.RUNNING && !shrinking) bar("§7Border schrumpft in §e" + Txt.time(s().shrinkAfter - elapsed),
                 (s().shrinkAfter - elapsed) / (float) Math.max(1, s().shrinkAfter - s().grace), BossBar.Color.BLUE);
         else if (state == GameState.RUNNING) bar("§cBorder: §f" + border + " §8┃ §7Lebende: §a" + alive.size()
-                + (s().has(Feature.SHOWDOWN) && !showdownDone ? " §8┃ §4Showdown in §f" + Txt.time(s().timeLimit * 60 - elapsed) : ""),
+                + (s().has(Feature.SHOWDOWN) && !showdownDone ? " §8┃ §4Showdown in §f" + Txt.time(s().timeLimit * 60 - elapsed) : "")
+                + (netherClosed ? " §8┃ §cNether zu" : ""),
                 (float) Math.min(1, (border - s().borderFinal) / (double) Math.max(1, s().borderInitial - s().borderFinal)), BossBar.Color.RED);
         boolean barVisible = state == GameState.STARTING || state.isIngame();
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            if (barVisible) p.showBossBar(bar);
-            else p.hideBossBar(bar);
+        if (barVisible != barShown) {
+            barShown = barVisible;
+            for (Player p : online) {
+                if (barVisible) p.showBossBar(bar);
+                else p.hideBossBar(bar);
+            }
         }
 
-        // Actionbar
+        // ---------------- Actionbar
         if (state.isIngame() && w != null) {
             double half = w.getWorldBorder().getSize() / 2.0;
             Location bc = w.getWorldBorder().getCenter();
-            for (Player p : Bukkit.getOnlinePlayers()) {
+            for (Player p : online) {
                 if (p.getWorld() != w) continue;
                 int dist = (int) Math.max(0, half - Math.max(Math.abs(p.getX() - bc.getX()), Math.abs(p.getZ() - bc.getZ())));
                 String col = dist < 15 ? "§c" : dist < 50 ? "§e" : "§a";
                 Txt.actionBar(p, "§7Der §bSpawn §7ist bei §bX: " + bc.getBlockX() + " §7und §bZ: " + bc.getBlockZ()
                         + " §8┃ §7Distanz zur §bBorder§7: " + col + dist + " §7Blöcke");
             }
-        } else if (state.isLobby()) {
-            String sc = s().scenarios.isEmpty() ? "§7keine" : "§e/szenarios";
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                if (plugin.practice().isIn(p)) continue;
-                Txt.actionBar(p, "§8| §7Aktuell in der §aLobbyphase §8| §7Practice: "
-                        + (s().has(Feature.PRACTICE) && arena().getPractice() != null ? "§aaktiviert" : "§caus") + " §8| §7Szenarios: " + sc + " §8|");
-            }
+        } else if (state.isLobby() && displayTick % 2 == 0) { // Lobby-Text bleibt ~3 s stehen -> alle 2 s reicht
+            String msg = "§8| §7Aktuell in der §aLobbyphase §8| §7Practice: "
+                    + (s().has(Feature.PRACTICE) && arena().getPractice() != null ? "§aaktiviert" : "§caus")
+                    + " §8| §7Szenarios: " + (s().scenarios.isEmpty() ? "§7keine" : "§e/szenarios") + " §8|";
+            var comp = Txt.c(msg);
+            for (Player p : online) if (!plugin.practice().isIn(p)) p.sendActionBar(comp);
         }
 
-        // Nametags
+        // ---------------- Nametags: einmal berechnen, nur bei Änderung an die Boards geben
         Map<String, NamedTextColor> colors = new LinkedHashMap<>();
         Map<String, String> prefixes = new LinkedHashMap<>();
         Map<String, Set<String>> members = new LinkedHashMap<>();
         Set<String> specs = new HashSet<>();
-        for (Player p : Bukkit.getOnlinePlayers()) if (p.getGameMode() == GameMode.SPECTATOR) specs.add(p.getName());
+        for (Player p : online) if (p.getGameMode() == GameMode.SPECTATOR) specs.add(p.getName());
         UUID bounty = plugin.features().bountyTarget();
-        if (!s().isSolo()) {
+        boolean ingameTags = state.isIngame() || state == GameState.ENDING;
+        if (ingameTags && !s().isSolo()) {
             for (MTeam t : plugin.teams().getTeams()) {
                 Set<String> set = new HashSet<>();
                 for (UUID u : t.getMembers()) {
                     Player p = Bukkit.getPlayer(u);
                     if (p != null && !specs.contains(p.getName()) && !u.equals(bounty)) set.add(p.getName());
                 }
-                String key = String.format("%02d", t.getNumber());
+                String key = String.format("t%02d", t.getNumber());
                 colors.put(key, t.textColor());
                 prefixes.put(key, t.getColor() + "[" + t.getNumber() + "] ");
                 members.put(key, set);
@@ -792,35 +817,48 @@ public class GameManager {
             prefixes.put("zbounty", "§6☠ ");
             members.put("zbounty", bp == null ? Set.of() : Set.of(bp.getName()));
         }
-        Set<String> admins = new HashSet<>();
-        if (state.isLobby()) {
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                if (p.hasPermission("odv.admin") && plugin.teams().getTeam(p) == null && !specs.contains(p.getName())) admins.add(p.getName());
-            }
-            colors.put("yadmin", NamedTextColor.RED);
-            prefixes.put("yadmin", "§c[A] ");
-            members.put("yadmin", admins);
+        // Ränge (Lobby für alle, im Spiel für Solo-Spieler ohne Team-Tag)
+        int ri = 0;
+        Map<String, String> rankKey = new HashMap<>();
+        for (var r : plugin.ranks().all().values()) {
+            String key = String.format("r%02d", ri++);
+            rankKey.put(r.id(), key);
+            colors.put(key, r.color());
+            prefixes.put(key, r.prefix());
+            members.put(key, new HashSet<>());
+        }
+        for (Player p : online) {
+            if (specs.contains(p.getName()) || p.getUniqueId().equals(bounty)) continue;
+            if (ingameTags && !s().isSolo() && plugin.teams().getTeam(p) != null) continue;
+            members.get(rankKey.get(plugin.ranks().of(p).id())).add(p.getName());
         }
         colors.put("zspec", NamedTextColor.GRAY);
         prefixes.put("zspec", "§7");
         members.put("zspec", specs);
+        int tagSig = java.util.Objects.hash(members, prefixes);
 
+        // ---------------- Sidebar
+        if (date == null || displayTick % 60 == 0) date = new SimpleDateFormat("dd.MM.yy").format(new Date());
         List<Map.Entry<UUID, Integer>> top = topKillers(3);
-        String date = new SimpleDateFormat("dd.MM.yy").format(new Date());
-        int online = Bukkit.getOnlinePlayers().size();
         String hostName = host == null ? "-" : plugin.stats().name(host);
+        String header = "\n" + s().mode.title + " §8✦ §7" + s().serverIp + "\n";
+        String footer = state.isIngame()
+                ? "\n§7Lebende: §a" + alive.size() + " §8┃ §7Zeit: §a" + time + " §8┃ §7Border: §b" + border + "\n"
+                : "\n§7Online: §a" + online.size() + " §8┃ §7Phase: §e" + state.display + "\n";
+        String tabKey = header + footer;
+        int candidates = candidates().size(), aliveTeams = ingameTags ? aliveTeams().size() : 0;
 
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            Sidebar sb = boards.get(p.getUniqueId());
+        for (Player p : online) {
+            UUID id = p.getUniqueId();
+            Sidebar sb = boards.get(id);
             if (sb == null) continue;
             if (p.getScoreboard() != sb.getBoard()) p.setScoreboard(sb.getBoard());
             sb.setTitle(s().mode.title);
             MTeam team = plugin.teams().getTeam(p);
             String teamName = team == null ? "§8-" : s().isSolo() ? "§fSolo" : team.getDisplayName();
-            List<String> lines = new ArrayList<>();
+            List<String> lines = new ArrayList<>(15);
             lines.add("§8" + date);
             if (plugin.practice().isIn(p)) {
-                UUID id = p.getUniqueId();
                 int k = plugin.stats().get(id, "p_kills"), d = plugin.stats().get(id, "p_deaths");
                 lines.add("§c§lPractice");
                 lines.add("§7Kills: §a" + k);
@@ -829,19 +867,21 @@ public class GameManager {
                 lines.add(" ");
                 lines.add("§7/practice §8→ §7zurück");
             } else if (state.isLobby() || state == GameState.ENDING) {
+                var r = plugin.ranks().of(p);
+                lines.add("§7Rang:");
+                lines.add(" §8» " + r.nameColor() + r.name());
                 lines.add("§7Host:");
                 lines.add(" §8» §b" + hostName);
                 lines.add("§7Team:");
                 lines.add(" §8» " + teamName);
                 lines.add("§7Spieler:");
-                lines.add(" §8» §a" + candidates().size() + "§7/" + s().maxPlayers
-                        + (state == GameState.STARTING ? " §8| §e" + countdown + "s" : ""));
+                lines.add(" §8» §a" + candidates + "§7/" + s().maxPlayers + (state == GameState.STARTING ? " §8| §e" + countdown + "s" : ""));
                 lines.add("§7Modus:");
                 lines.add(" §8» §f" + s().mode.display + (s().isSolo() ? " Solo" : " " + s().teamSize + "er") + (s().oldPvp ? " §8(1.8-PvP)" : ""));
             } else {
                 lines.add("§7Team: " + teamName);
-                lines.add("§7Kills: §c" + getKills(p.getUniqueId()) + (s().isSolo() || team == null ? "" : " §8(" + team.getKills() + ")"));
-                lines.add("§7Lebende: §a" + alive.size() + " §8(" + aliveTeams().size() + (s().isSolo() ? ")" : " Teams)"));
+                lines.add("§7Kills: §c" + getKills(id) + (s().isSolo() || team == null ? "" : " §8(" + team.getKills() + ")"));
+                lines.add("§7Lebende: §a" + alive.size() + " §8(" + aliveTeams + (s().isSolo() ? ")" : " Teams)"));
                 lines.add(" ");
                 lines.add("§7Zeit: §a" + time);
                 lines.add("§7Border: §b" + border);
@@ -854,20 +894,87 @@ public class GameManager {
             lines.add("   ");
             lines.add("§7Server:");
             lines.add(" §8» §b" + s().serverIp);
-            sb.setLines(lines);
-            sb.setNametags(colors, prefixes, members);
+            sb.setLines(lines);               // schickt nur geänderte Zeilen
+            sb.setNametagsIfChanged(tagSig, colors, prefixes, members);
 
-            String footer = state.isIngame()
-                    ? "\n§7Lebende: §a" + alive.size() + " §8┃ §7Zeit: §a" + time + " §8┃ §7Border: §b" + border + "\n"
-                    : "\n§7Online: §a" + online + " §8┃ §7Phase: §e" + state.display + "\n";
-            p.sendPlayerListHeaderAndFooter(Txt.c("\n" + s().mode.title + " §8✦ §7" + s().serverIp + "\n"), Txt.c(footer));
+            if (!tabKey.equals(lastTab.get(id))) {
+                lastTab.put(id, tabKey);
+                p.sendPlayerListHeaderAndFooter(Txt.c(header), Txt.c(footer));
+            }
+            String listName = listName(p, team, specs.contains(p.getName()), ingameTags);
+            if (!listName.equals(lastListName.get(id))) {
+                lastListName.put(id, listName);
+                p.playerListName(Txt.c(listName));
+            }
         }
+    }
+
+    /** Name in der Tabliste: Rang-Prefix in der Lobby, Teamfarbe im Spiel. */
+    private String listName(Player p, MTeam team, boolean spectator, boolean ingame) {
+        var r = plugin.ranks().of(p);
+        if (spectator && ingame) return "§7§o" + p.getName();
+        if (ingame && team != null && !s().isSolo()) return team.getColor() + "[" + team.getNumber() + "] " + r.nameColor() + p.getName();
+        return r.prefix() + p.getName();
+    }
+
+    /** Vom RankManager aufgerufen, wenn sich der Rang eines Spielers ändert/geladen wurde. */
+    public void onRankChanged(Player p) {
+        lastListName.remove(p.getUniqueId());
+        if (state.isLobby() && !plugin.practice().isIn(p)) giveLobbyItems(p);
     }
 
     private void bar(String text, float progress, BossBar.Color color) {
         bar.name(Txt.c(text));
         bar.progress(Math.max(0f, Math.min(1f, progress)));
         bar.color(color);
+    }
+
+    /** Finale: Nether schließen, Spieler im Nether zurück in die Arena holen. */
+    private void closeNether(String reason) {
+        if (netherClosed) return;
+        netherClosed = true;
+        World arenaWorld = arena().getWorld();
+        Location c = arena().getCenter();
+        List<Player> pulled = new ArrayList<>();
+        for (UUID u : alive) {
+            Player p = Bukkit.getPlayer(u);
+            if (p != null && p.getWorld().getEnvironment() == World.Environment.NETHER) pulled.add(p);
+        }
+        if (s().nether) broadcast("§c" + reason + " – §lder Nether ist jetzt geschlossen§c!");
+        if (arenaWorld == null || c == null || pulled.isEmpty()) return;
+        int r = (int) Math.max(15, arenaWorld.getWorldBorder().getSize() / 2 - 25);
+        List<Location> spots = plugin.spawns().ring(arenaWorld, c, pulled.size(), r);
+        for (int i = 0; i < pulled.size(); i++) {
+            Player p = pulled.get(i);
+            p.teleport(spots.get(i));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 5, 4));
+            Txt.title(p, "§cNether geschlossen", "§7Du wurdest in die Arena geholt");
+        }
+    }
+
+    public boolean isNetherClosed() {
+        return netherClosed;
+    }
+
+    /** Zuschauer dürfen nur im Spawnbereich zuschauen (Team bekommt keine Infos). */
+    private void limitSpectators() {
+        int radius = s().spectatorRadius;
+        Location c = arena().getCenter();
+        if (radius <= 0 || c == null) return;
+        double r2 = (double) radius * radius;
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (p.getGameMode() != GameMode.SPECTATOR || p.hasPermission("odv.staff") || alive.contains(p.getUniqueId())) continue;
+            Location l = p.getLocation();
+            boolean outside = !l.getWorld().equals(c.getWorld());
+            if (!outside) {
+                double dx = l.getX() - c.getX(), dz = l.getZ() - c.getZ();
+                outside = dx * dx + dz * dz > r2;
+            }
+            if (outside) {
+                p.teleport(c.clone().add(0, 15, 0));
+                Txt.actionBar(p, "§cZuschauer dürfen nur im Spawnbereich (" + radius + " Blöcke) bleiben.");
+            }
+        }
     }
 
     public List<Map.Entry<UUID, Integer>> topKillers(int n) {
