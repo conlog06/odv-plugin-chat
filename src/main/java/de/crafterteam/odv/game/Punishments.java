@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class Punishments implements Listener, CommandExecutor, TabCompleter {
 
-    public static final String[] COMMANDS = {"ban", "tempban", "unban", "kick", "banlist", "strike", "strikes", "unstrike"};
+    public static final String[] COMMANDS = {"ban", "tempban", "unban", "kick", "banlist", "strike", "strikes", "unstrike", "check", "history"};
 
     public record Tag(UUID enemy, long until) {}
 
@@ -58,7 +58,7 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
     private final OdvPlugin plugin;
     private final Map<UUID, Tag> combat = new ConcurrentHashMap<>();
     private final Map<UUID, Ban> bans = new ConcurrentHashMap<>(); // Cache, falls die DB beim Login nicht antwortet
-    private String tStrikes, tBans;
+    private String tStrikes, tBans, tHistory;
 
     public Punishments(OdvPlugin plugin) {
         this.plugin = plugin;
@@ -74,6 +74,7 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
         String pre = plugin.stats().tablePrefix();
         tStrikes = pre + "strikes";
         tBans = pre + "bans";
+        tHistory = pre + "punish_history";
         boolean my = plugin.stats().isMysql();
         plugin.stats().async(c -> {
             try (Statement st = c.createStatement()) {
@@ -84,6 +85,10 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
                 st.executeUpdate("CREATE TABLE IF NOT EXISTS " + tBans + " (uuid VARCHAR(36) NOT NULL PRIMARY KEY,"
                         + " name VARCHAR(16) NOT NULL, reason VARCHAR(255) NOT NULL, by_name VARCHAR(32) NOT NULL,"
                         + " created BIGINT NOT NULL, expires BIGINT NOT NULL)");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + tHistory + " ("
+                        + (my ? "id INT NOT NULL AUTO_INCREMENT PRIMARY KEY" : "id INTEGER PRIMARY KEY AUTOINCREMENT")
+                        + ", uuid VARCHAR(36) NOT NULL, name VARCHAR(16) NOT NULL, type VARCHAR(8) NOT NULL, reason VARCHAR(255) NOT NULL,"
+                        + " by_name VARCHAR(32) NOT NULL, created BIGINT NOT NULL, duration BIGINT NOT NULL)");
             }
             long now = System.currentTimeMillis();
             try (PreparedStatement ps = c.prepareStatement("DELETE FROM " + tBans + " WHERE expires > 0 AND expires < ?")) {
@@ -135,6 +140,24 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
             ps.setString(1, id.toString());
             ps.executeUpdate();
         }
+    }
+
+    /** Eintrag in die Strafen-Historie (/history). duration: 0 = permanent, -1 = keine Dauer. */
+    public void log(UUID id, String name, String type, String reason, String by, long duration) {
+        if (tHistory == null) return;
+        long now = System.currentTimeMillis();
+        plugin.stats().async(c -> {
+            try (PreparedStatement ps = c.prepareStatement("INSERT INTO " + tHistory + " (uuid, name, type, reason, by_name, created, duration) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                ps.setString(1, id.toString());
+                ps.setString(2, cut(name, 16));
+                ps.setString(3, type);
+                ps.setString(4, cut(reason, 255));
+                ps.setString(5, cut(by, 32));
+                ps.setLong(6, now);
+                ps.setLong(7, duration);
+                ps.executeUpdate();
+            }
+        });
     }
 
     private int activeStrikes(Connection c, UUID id) throws SQLException {
@@ -230,6 +253,14 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
                 ps.setLong(6, expires);
                 ps.executeUpdate();
             }
+            try (PreparedStatement ps = c.prepareStatement("INSERT INTO " + tHistory + " (uuid, name, type, reason, by_name, created, duration) VALUES (?, ?, 'STRIKE', ?, ?, ?, -1)")) {
+                ps.setString(1, id.toString());
+                ps.setString(2, cut(n, 16));
+                ps.setString(3, cut(reason, 255));
+                ps.setString(4, cut(byName, 32));
+                ps.setLong(5, now);
+                ps.executeUpdate();
+            }
             int count = activeStrikes(c, id);
             Map.Entry<Integer, String> rule = s().autoBan.floorEntry(count);
             boolean exact = rule != null && (rule.getKey() == count || count > s().autoBan.lastKey());
@@ -257,6 +288,7 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
         long now = System.currentTimeMillis();
         Ban b = new Ban(id, cut(name, 16), cut(reason, 255), cut(byName, 32), now, dur == 0 ? 0 : now + dur);
         bans.put(id, b);
+        log(id, name, "BAN", reason, byName, dur);
         plugin.stats().async(c -> {
             deleteBan(c, id);
             try (PreparedStatement ps = c.prepareStatement("INSERT INTO " + tBans + " (uuid, name, reason, by_name, created, expires) VALUES (?, ?, ?, ?, ?, ?)")) {
@@ -318,13 +350,39 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
                 if (!canPunish(sender, t.getUniqueId())) return true;
                 String reason = rest(a, 1, "Kein Grund angegeben");
                 t.kick(Txt.c("§c§lDu wurdest gekickt\n\n§7Grund: §f" + reason + "\n§7Von: §f" + sender.getName()));
+                log(t.getUniqueId(), t.getName(), "KICK", reason, sender.getName(), -1);
                 staff(pre + "§e" + t.getName() + " §7wurde von §f" + sender.getName() + " §7gekickt – §f" + reason);
                 if (!sender.hasPermission("odv.staff")) Txt.send(sender, pre + "§aGekickt.");
             }
             case "ban", "tempban" -> {
                 boolean temp = c.equals("tempban");
+                if (!temp && a.length == 0) {
+                    if (!perm(sender, "odv.tempban")) return true;
+                    Txt.send(sender, pre + "§7Ban-IDs §8– §e/ban <Spieler> <ID> [Notiz]");
+                    for (var en : s().banIds.entrySet()) {
+                        Settings.BanPreset bp = en.getValue();
+                        Txt.send(sender, "§8» §c" + en.getKey() + " §8┃ §f" + bp.reason() + " §8┃ " + (bp.mute() ? "§6Mute " : "§cBan ")
+                                + (bp.duration() == 0 ? "§4perm" : "§e" + formatDuration(bp.duration())));
+                    }
+                    return true;
+                }
+                if (!temp && a.length >= 2 && a[1].matches("\\d+") && s().banIds.containsKey(Integer.parseInt(a[1]))) {
+                    Settings.BanPreset bp = s().banIds.get(Integer.parseInt(a[1]));
+                    String need = bp.mute() ? "odv.mute" : bp.duration() == 0 ? "odv.ban" : "odv.tempban";
+                    if (!perm(sender, need)) return true;
+                    String note = rest(a, 2, "");
+                    String reason = bp.reason() + (note.isEmpty() ? "" : " (" + note + ")");
+                    resolve(sender, a[0], (id, name) -> {
+                        if (!canPunish(sender, id)) return;
+                        if (bp.mute()) {
+                            plugin.ranks().mute(sender, name, (int) Math.max(1, bp.duration() == 0 ? 525_600L * 10 : bp.duration() / 60_000L));
+                            log(id, name, "MUTE", reason, sender.getName(), bp.duration());
+                        } else ban(sender, id, name, bp.duration(), reason);
+                    });
+                    return true;
+                }
                 if (!perm(sender, temp ? "odv.tempban" : "odv.ban")) return true;
-                if (a.length < (temp ? 2 : 1)) return usage(sender, temp ? "/tempban <Spieler> <Dauer: 30m, 12h, 7d, 2w> [Grund]" : "/ban <Spieler> [Grund]");
+                if (a.length < (temp ? 2 : 1)) return usage(sender, temp ? "/tempban <Spieler> <Dauer: 30m, 12h, 7d, 2w> [Grund]" : "/ban <Spieler> [ID|Grund]");
                 long dur = 0;
                 if (temp) {
                     dur = parseDuration(a[1]);
@@ -339,12 +397,23 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
                     if (canPunish(sender, id)) ban(sender, id, name, d, reason);
                 });
             }
+            case "check" -> {
+                if (!perm(sender, "odv.strike")) return true;
+                if (a.length < 1) return usage(sender, "/check <Spieler>");
+                resolve(sender, a[0], (id, name) -> check(sender, id, name));
+            }
+            case "history" -> {
+                if (!perm(sender, "odv.strike")) return true;
+                if (a.length < 1) return usage(sender, "/history <Spieler>");
+                resolve(sender, a[0], (id, name) -> history(sender, id, name));
+            }
             case "unban" -> {
                 if (!perm(sender, "odv.tempban")) return true;
                 if (a.length < 1) return usage(sender, "/unban <Spieler>");
                 resolve(sender, a[0], (id, name) -> {
                     boolean had = bans.remove(id) != null;
                     plugin.stats().async(con -> deleteBan(con, id));
+                    log(id, name, "UNBAN", rest(a, 1, "-"), sender.getName(), -1);
                     staff(pre + "§a" + name + " §7wurde von §f" + sender.getName() + " §7entbannt.");
                     if (!sender.hasPermission("odv.staff")) Txt.send(sender, pre + (had ? "§aEntbannt." : "§7" + name + " war nicht gebannt."));
                 });
@@ -443,6 +512,59 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
                 Map.Entry<Integer, String> next = s().autoBan.ceilingEntry(a + 1);
                 if (next != null) Txt.send(to, "§8» §7Bei §c" + next.getKey() + " §7Strikes: Ban §e" + next.getValue());
                 if (ban != null) Txt.send(to, "§8» §4Gebannt §7" + (ban.expires() == 0 ? "permanent" : "noch " + formatDuration(ban.expires() - System.currentTimeMillis())) + " §8– §f" + ban.reason());
+            });
+        });
+    }
+
+    private void check(CommandSender to, UUID id, String name) {
+        plugin.stats().async(c -> {
+            Ban ban = loadBan(c, id);
+            int strikes = activeStrikes(c, id);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                Player p = Bukkit.getPlayer(id);
+                long mute = plugin.ranks().mutedUntil(id);
+                Txt.send(to, s().prefix + "§7Status von §e" + name);
+                Txt.send(to, "§8» §7Online: " + (p != null ? "§aja" : "§cnein")
+                        + (p != null && plugin.host().isFrozen(p) ? " §8┃ §bEINGEFROREN" : "")
+                        + (p != null && plugin.game().getState().isIngame() ? " §8┃ " + (plugin.game().isAlive(p) ? "§alebt" : "§7Zuschauer") : ""));
+                Txt.send(to, "§8» §7Ban: " + (ban == null ? "§akeiner" : "§c" + (ban.expires() == 0 ? "permanent" : "noch " + formatDuration(ban.expires() - System.currentTimeMillis())) + " §8– §f" + ban.reason() + " §8(" + ban.by() + ")"));
+                Txt.send(to, "§8» §7Mute: " + (mute > System.currentTimeMillis() ? "§6noch " + formatDuration(mute - System.currentTimeMillis()) : "§akeiner"));
+                Txt.send(to, "§8» §7Strikes: §c" + strikes + " aktiv §8(/strikes " + name + ")");
+            });
+        });
+    }
+
+    private void history(CommandSender to, UUID id, String name) {
+        plugin.stats().async(c -> {
+            List<String> lines = new ArrayList<>();
+            SimpleDateFormat f = new SimpleDateFormat("dd.MM.yy HH:mm");
+            int total = 0;
+            try (PreparedStatement ps = c.prepareStatement("SELECT type, reason, by_name, created, duration FROM " + tHistory + " WHERE uuid = ? ORDER BY created DESC")) {
+                ps.setString(1, id.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        total++;
+                        if (lines.size() >= 15) continue;
+                        String type = rs.getString(1);
+                        long dur = rs.getLong(5);
+                        String col = switch (type) {
+                            case "BAN" -> "§c";
+                            case "MUTE" -> "§6";
+                            case "KICK" -> "§e";
+                            case "UNBAN" -> "§a";
+                            default -> "§d";
+                        };
+                        lines.add(col + type + " §8" + f.format(new Date(rs.getLong(4))) + " §f" + rs.getString(2)
+                                + (dur >= 0 && !type.equals("UNBAN") && !type.equals("KICK") ? " §8(" + (dur == 0 ? "perm" : formatDuration(dur)) + ")" : "")
+                                + " §8– " + rs.getString(3));
+                    }
+                }
+            }
+            int t = total;
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                Txt.send(to, s().prefix + "§7Historie von §e" + name + " §8(" + t + " Einträge)");
+                if (lines.isEmpty()) Txt.send(to, "§8» §aKeine Einträge.");
+                for (String l : lines) Txt.send(to, "§8» " + l);
             });
         });
     }
@@ -558,6 +680,8 @@ public class Punishments implements Listener, CommandExecutor, TabCompleter {
             } else {
                 for (Player p : Bukkit.getOnlinePlayers()) if (p.getName().toLowerCase(Locale.ROOT).startsWith(a[0].toLowerCase(Locale.ROOT))) out.add(p.getName());
             }
+        } else if (a.length == 2 && c.equals("ban")) {
+            for (Integer k : s().banIds.keySet()) out.add(String.valueOf(k));
         } else if (a.length == 2 && c.equals("tempban")) {
             out.addAll(List.of("30m", "1h", "12h", "1d", "7d", "2w"));
         } else if (a.length == 2 && c.equals("unstrike")) {

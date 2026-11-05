@@ -71,6 +71,19 @@ public class OdvCommand implements TabExecutor {
                 return true;
             }
             case "mod" -> {
+                if (args.length >= 1) { // /mod <Spieler>: anderen zum Zuschauer machen
+                    if (!plugin.host().isHost(sender)) {
+                        tell(sender, "§cNur für den Host.");
+                        return true;
+                    }
+                    Player t = Bukkit.getPlayerExact(args[0]);
+                    if (t == null) tell(sender, "§c" + args[0] + " ist nicht online.");
+                    else {
+                        plugin.game().toggleMod(t);
+                        tell(sender, "§7" + t.getName() + " ist jetzt " + (plugin.game().isMod(t) ? "§aZuschauer/Mod" : "§cwieder Spieler") + "§7.");
+                    }
+                    return true;
+                }
                 if (p == null) return true;
                 if (!p.hasPermission("odv.host") && !p.hasPermission("odv.staff") && !p.getUniqueId().equals(plugin.game().getHost())) {
                     tell(p, "§cNur für Hoster und Team.");
@@ -177,6 +190,16 @@ public class OdvCommand implements TabExecutor {
             default -> {
             }
         }
+        // Host-Befehle auch als /meetup <befehl> (wie bei Mega-Events)
+        String hostCmd = de.crafterteam.odv.game.HostCommands.SUB_ALIASES.get(sub);
+        if (hostCmd != null) {
+            plugin.host().run(sender, hostCmd, java.util.Arrays.copyOfRange(args, 1, args.length));
+            return true;
+        }
+        if ((sub.equals("start") || sub.equals("host") || sub.equals("announce")) && plugin.host().isHost(sender) && !sender.hasPermission("odv.admin")) {
+            plugin.host().run(sender, sub, java.util.Arrays.copyOfRange(args, 1, args.length));
+            return true;
+        }
         if (!sender.hasPermission("odv.admin")) {
             help(sender);
             return true;
@@ -204,7 +227,12 @@ public class OdvCommand implements TabExecutor {
                     plugin.game().broadcast("§aRunde startet in §e" + sec + " §aSekunden. §8(" + sender.getName() + ")");
                 }
             }
-            case "stop", "reset" -> plugin.game().stop();
+            case "stop" -> plugin.game().stop();
+            case "reset" -> { // wie bei Mega-Events: in der Lobby = neue Welt, sonst Runde stoppen
+                if (!plugin.game().getState().isLobby()) plugin.game().stop();
+                else if (plugin.arena().getWorld() == null) plugin.spawns().quickSetup(sender);
+                else plugin.spawns().resetArena(sender);
+            }
             case "host" -> {
                 if (p != null) {
                     plugin.game().setHost(p.getUniqueId());
@@ -221,7 +249,7 @@ public class OdvCommand implements TabExecutor {
                 plugin.game().refreshHolograms();
                 tell(sender, "§aPreset " + s().mode.display + " geladen.");
             }
-            case "setlobby" -> {
+            case "setlobby", "setlobbyspawn" -> {
                 if (needPlayer(sender) && lobby(sender)) {
                     plugin.arena().setLobby(p.getLocation());
                     plugin.game().refreshHolograms();
@@ -591,9 +619,16 @@ public class OdvCommand implements TabExecutor {
         Txt.send(s, "§b/odv stats §7[Name] §8| §b/odv top §7[kills|wetten|practice]");
         Txt.send(s, "§b/ping §7oder §bSchleichen + F §8| §b/backpack §8| §b/coords §8| §b/lb");
         Txt.send(s, "§b/teamliste §8| §b/changelog §8| §b/rank info");
+        Txt.send(s, "§b/report <Spieler> <Grund>");
+        if (plugin.host().isHost(s)) {
+            Txt.send(s, "§a/host §8| §a/mod §7[Spieler] §8| §a/start §7[Sek] §8| §a/border <Größe> §7[Sek] §8| §a/finale §7[Sek]");
+            Txt.send(s, "§a/freeze §8| §a/latejoin <Spieler> §7[Team] §8| §a/revive §8| §a/teamchange §8| §a/remove §8| §a/setkit");
+            Txt.send(s, "§a/createworld §8| §a/worlds §8| §a/announce <Uhrzeit> §7[Text] §8| §a/invsee §8| §a/v §8| §a/fly");
+        }
+        if (s.hasPermission("odv.staff")) Txt.send(s, "§d/ban §7[Spieler ID] §8| §d/check §8| §d/history §8| §d/strikes §8| §d/reports §8| §d/report login|logout");
         if (s.hasPermission("odv.admin")) {
             Txt.send(s, "§c/odv §8- §7Setup-Menü §8| §c/odv quick §8- §7Schnellsetup §8| §c/odv resetworld §8- §7Welt neu");
-            Txt.send(s, "§c/odv start §7[Sek] §8| §c/odv stop §8| §c/odv host §8| §c/odv preset odv|meetup");
+            Txt.send(s, "§c/odv start §7[Sek] §8| §c/odv stop §8| §c/odv reset §8| §c/odv host §8| §c/odv preset odv|meetup");
             Txt.send(s, "§c/odv setlobby|setcenter|setpractice|build");
             Txt.send(s, "§c/odv wand §8→ §c/odv schem save <Name> §8| §c/odv schem list|paste|delete");
             Txt.send(s, "§c/odv spawns build|tp|clear|undo §8| §c/odv kit save|give|reset §7[typ]");
@@ -621,7 +656,7 @@ public class OdvCommand implements TabExecutor {
         } else if (c.equals("odv")) {
             if (args.length == 1) {
                 o.addAll(List.of("help", "teams", "join", "leave", "spec", "bet", "stats", "top"));
-                if (sender.hasPermission("odv.admin")) o.addAll(List.of("setup", "quick", "resetworld", "start", "stop", "host", "preset", "setlobby",
+                if (sender.hasPermission("odv.admin")) o.addAll(List.of("setup", "quick", "resetworld", "reset", "setlobbyspawn", "border", "finale", "freeze", "add", "revive", "team", "remove", "setstarterkit", "createworld", "worlds", "start", "stop", "host", "preset", "setlobby",
                         "setcenter", "setpractice", "build", "kit", "wand", "schem", "spawns", "supply", "xray", "antixray", "pregen", "backup", "reload",
                         "announce", "changelog"));
             } else if (args.length == 2) {

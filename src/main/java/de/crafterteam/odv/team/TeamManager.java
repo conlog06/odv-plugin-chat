@@ -112,6 +112,43 @@ public class TeamManager {
         return best;
     }
 
+    /** Team für einen Latejoin: Team mit den wenigsten Spielern (Solo: neues eigenes Team). */
+    public MTeam lateTeam(Player p) {
+        if (plugin.settings().isSolo()) {
+            int n = 1;
+            for (MTeam t : teams) n = Math.max(n, t.getNumber() + 1);
+            MTeam t = new MTeam(n, p.getName(), ChatColor.WHITE, Material.WHITE_WOOL);
+            teams.add(t);
+            return t;
+        }
+        MTeam best = null;
+        for (MTeam t : teams) if (!isFull(t) && (best == null || t.getMembers().size() < best.getMembers().size())) best = t;
+        return best;
+    }
+
+    /** Team nach Nummer oder Name (z. B. "3" oder "Rot"). */
+    public MTeam find(String in) {
+        try {
+            MTeam t = byNumber(Integer.parseInt(in));
+            if (t != null) return t;
+        } catch (NumberFormatException ignored) {
+        }
+        for (MTeam t : teams) if (t.getName().equalsIgnoreCase(in)) return t;
+        if (!plugin.settings().isSolo()) { // Team wurde beim Start entfernt (leer) → neu anlegen
+            for (int i = 0; i < plugin.settings().teamCount; i++) {
+                int c = i % 16;
+                String name = NAMES[c] + (i >= 16 ? " " + (i / 16 + 1) : "");
+                if (String.valueOf(i + 1).equals(in) || name.equalsIgnoreCase(in)) {
+                    if (byNumber(i + 1) != null) return byNumber(i + 1);
+                    MTeam t = new MTeam(i + 1, name, COLORS[c], WOOL[c]);
+                    teams.add(t);
+                    return t;
+                }
+            }
+        }
+        return null;
+    }
+
     public boolean hasCapacity(int players) {
         return plugin.settings().isSolo() || players <= plugin.settings().teamCount * plugin.settings().teamSize;
     }

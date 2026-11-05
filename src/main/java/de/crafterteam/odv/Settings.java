@@ -92,7 +92,10 @@ public class Settings {
     public boolean combatLog, strikeCombatLog, strikeLeave;
     public int combatSeconds, strikeExpireDays;
     public final java.util.TreeMap<Integer, String> autoBan = new java.util.TreeMap<>();
-    public String banAppeal;
+    public String banAppeal, freezeLogoutBan;
+    public boolean hostAutoMod;
+    public record BanPreset(String reason, boolean mute, long duration) {}
+    public final java.util.TreeMap<Integer, BanPreset> banIds = new java.util.TreeMap<>();
     public String discordWebhook;
     public boolean discordResults;
 
@@ -152,6 +155,28 @@ public class Settings {
         strikeLeave = c.getBoolean("punishments.strike-leave", true);
         strikeExpireDays = clamp(c.getInt("punishments.strike-expire-days", 30), 0, 3650);
         banAppeal = c.getString("punishments.appeal", "");
+        freezeLogoutBan = c.getString("punishments.freeze-logout-ban", "30d");
+        hostAutoMod = c.getBoolean("host.auto-mod", true);
+        banIds.clear();
+        var ids = c.getConfigurationSection("punishments.ids");
+        if (ids == null) { // Standard-IDs
+            String[][] def = {{"1", "Hacking / unerlaubte Mods", "BAN", "30d"}, {"2", "Teaming / Truce", "BAN", "3d"},
+                    {"3", "Bugusing", "BAN", "1d"}, {"4", "Beleidigung", "MUTE", "1h"}, {"5", "Spam / Caps", "MUTE", "30m"},
+                    {"6", "Werbung", "MUTE", "1d"}, {"7", "Unangemessener Name / Skin", "BAN", "7d"},
+                    {"8", "Combat-Log / Ausloggen im Freeze", "BAN", "7d"}, {"9", "Banumgehung", "BAN", "perm"},
+                    {"10", "Schwerer Regelverstoß", "BAN", "perm"}};
+            for (String[] d : def) banIds.put(Integer.parseInt(d[0]), new BanPreset(d[1], d[2].equals("MUTE"), de.crafterteam.odv.game.Punishments.parseDuration(d[3])));
+        } else {
+            for (String k : ids.getKeys(false)) {
+                try {
+                    long dur = de.crafterteam.odv.game.Punishments.parseDuration(ids.getString(k + ".duration", "1d"));
+                    if (dur == Long.MIN_VALUE) continue;
+                    banIds.put(Integer.parseInt(k.trim()), new BanPreset(ids.getString(k + ".reason", "Regelverstoß"),
+                            "MUTE".equalsIgnoreCase(ids.getString(k + ".type", "BAN")), dur));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
         autoBan.clear();
         var ab = c.getConfigurationSection("punishments.auto-ban");
         if (ab != null) for (String k : ab.getKeys(false)) {

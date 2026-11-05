@@ -42,7 +42,42 @@ commands:
   unmute:
     description: Mute aufheben
   mod:
-    description: Mod-Modus - Runde moderieren statt mitspielen (Hoster/Team)
+    description: Mod-Modus - Runde moderieren statt mitspielen (/mod [Spieler])
+  host:
+    description: Host werden und Host-Menue oeffnen
+  start:
+    description: Runde starten (/start [Countdown])
+  border:
+    description: Border setzen (/border <Groesse> [Sekunden])
+  finale:
+    description: Finale starten (/finale [Countdown])
+  freeze:
+    description: Spieler einfrieren und in den Support holen
+  latejoin:
+    description: Spieler nachstarten lassen (/latejoin <Spieler> [Team])
+  revive:
+    description: Spieler wiederbeleben (nur mit Clip!)
+  teamchange:
+    description: Team eines Spielers aendern
+  remove:
+    description: Spieler aus der Runde nehmen
+  setkit:
+    description: Spieler das Kit geben
+    aliases: [setstarterkit]
+  createworld:
+    description: Spielwelt erstellen (Spawnloecher + Portal automatisch)
+  worlds:
+    description: Zwischen den Welten springen
+  announce:
+    description: Event ankuendigen (/announce <Uhrzeit> [Text])
+  report:
+    description: Spieler melden (/report <Spieler> <Grund>, Team - login/logout)
+  reports:
+    description: Offene Reports (Team)
+  check:
+    description: Ban-/Mute-/Strike-Status eines Spielers
+  history:
+    description: Strafen-Historie eines Spielers
   ban:
     description: Spieler permanent bannen
   tempban:

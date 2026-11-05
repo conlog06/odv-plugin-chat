@@ -1,6 +1,17 @@
 # Wird mit /changelog angezeigt und mit /odv changelog post an Discord geschickt.
 # Neueste Version oben. Eigene Einträge einfach ergänzen.
 versions:
+  - version: "3.4.0"
+    date: "05.11.2026"
+    changes:
+      - "Host-Befehle wie bei Mega-Events: /host /start /border /finale /freeze /latejoin /revive /teamchange /remove /setkit"
+      - "/createworld erstellt die Spielwelt mit Spawnlöchern und Portal, /worlds zum Springen zwischen den Welten"
+      - "Alles auch als /meetup <befehl>: reset, setlobbyspawn, border, add, setstarterkit, team, remove, revive, freeze"
+      - "/announce 20:00 baut die Ankündigung automatisch (Modus, Teamgröße, Szenarien, IP) + Discord"
+      - "Ban-IDs: /ban zeigt alle IDs, /ban <Spieler> <ID> bannt oder mutet; /check und /history"
+      - "Report-System: /report, /reports mit TP- und Erledigt-Knopf, /report login|logout fürs Team"
+      - "Revive gibt das Inventar vom Tod zurück; Ausloggen im Freeze = automatischer Ban"
+      - "/mod <Spieler> macht andere zu Zuschauern; wer /host macht, spielt automatisch nicht mit"
   - version: "3.3.1"
     date: "05.11.2026"
     changes:

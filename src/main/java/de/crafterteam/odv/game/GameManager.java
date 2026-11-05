@@ -69,6 +69,8 @@ public class GameManager {
     private final Set<UUID> alive = new HashSet<>();
     private final Set<UUID> optedOut = new HashSet<>();
     private final Set<UUID> mods = new HashSet<>();
+    private final Map<UUID, ItemStack[]> deathInventories = new HashMap<>();
+    private int finaleTask = -1;
     private final Map<UUID, Integer> kills = new HashMap<>();
     private final Map<UUID, Location> deathLocations = new HashMap<>();
     private final Map<UUID, Integer> disconnected = new HashMap<>();
@@ -364,6 +366,7 @@ public class GameManager {
         disconnected.clear();
         returnLocations.clear();
         quitInventories.clear();
+        deathInventories.clear();
         elapsed = 0;
         shrinking = false;
         showdownDone = false;
@@ -435,6 +438,16 @@ public class GameManager {
 
     public void eliminate(UUID id, Player killer, Location where, String reason) {
         if (!alive.remove(id)) return;
+        Player dead = Bukkit.getPlayer(id);
+        if (dead != null) {
+            ItemStack[] c = dead.getInventory().getContents();
+            boolean any = false;
+            for (int i = 0; i < c.length; i++) {
+                c[i] = c[i] == null ? null : c[i].clone();
+                if (c[i] != null && !c[i].getType().isAir()) any = true;
+            }
+            if (any) deathInventories.put(id, c);
+        }
         disconnected.remove(id);
         returnLocations.remove(id);
         quitInventories.remove(id);
@@ -483,6 +496,158 @@ public class GameManager {
         p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 10, 1));
         Txt.title(p, "§a§lWIEDERBELEBT", "§7Dein Team hat dich zurückgeholt");
         return true;
+    }
+
+    // ===================================================================== Host-Befehle
+
+    private Kits.Type modeKit() {
+        return s().mode == Settings.Mode.ODV ? Kits.Type.ODV : Kits.Type.MEETUP;
+    }
+
+    private Location safeSpot(Location at) {
+        World w = arena().getWorld();
+        if (at == null || at.getWorld() == null) at = arena().getCenter();
+        if (at == null) return w != null ? w.getSpawnLocation() : Bukkit.getWorlds().get(0).getSpawnLocation();
+        World aw = at.getWorld();
+        boolean bad = at.getY() < aw.getMinHeight() + 2 || at.getBlock().isLiquid() || !aw.getWorldBorder().isInside(at);
+        if (!bad) return at;
+        Location c = arena().getCenter();
+        if (c == null) return at;
+        int x = c.getBlockX(), z = c.getBlockZ();
+        return new Location(c.getWorld(), x + 0.5, de.crafterteam.odv.world.SpawnManager.ground(c.getWorld(), x, z) + 1, z + 0.5);
+    }
+
+    /** /revive: am Todesort mit dem Inventar beim Tod zurückholen. */
+    public String hostRevive(Player p) {
+        UUID id = p.getUniqueId();
+        if (!state.isIngame()) return "§cEs läuft keine Runde.";
+        if (alive.contains(id)) return "§c" + p.getName() + " lebt noch.";
+        if (plugin.teams().getTeam(id) == null) return "§c" + p.getName() + " war nicht in der Runde – nutze §e/latejoin§c.";
+        alive.add(id);
+        kills.putIfAbsent(id, 0);
+        optedOut.remove(id);
+        mods.remove(id);
+        resetPlayer(p, GameMode.SURVIVAL);
+        p.teleport(safeSpot(deathLocations.get(id)));
+        ItemStack[] inv = deathInventories.remove(id);
+        if (inv != null) p.getInventory().setContents(inv);
+        else plugin.kits().give(p, modeKit());
+        p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 5, 4));
+        Txt.title(p, "§a§lWIEDERBELEBT", "§7vom Host");
+        broadcast("§a" + p.getName() + " §7wurde §awiederbelebt§7. §8[" + alive.size() + " übrig]");
+        lastListName.remove(id);
+        return null;
+    }
+
+    /** /latejoin: Spieler nachträglich in die Runde holen (Team optional). */
+    public String lateJoin(Player p, MTeam team) {
+        UUID id = p.getUniqueId();
+        if (!state.isIngame()) return "§cEs läuft keine Runde.";
+        if (alive.contains(id)) return "§c" + p.getName() + " spielt bereits.";
+        MTeam t = team != null ? team : plugin.teams().getTeam(id);
+        if (t == null) t = plugin.teams().lateTeam(p);
+        if (t == null) return "§cKein Team frei.";
+        plugin.teams().leave(id);
+        t.getMembers().add(id);
+        optedOut.remove(id);
+        mods.remove(id);
+        Location at = null;
+        for (UUID u : t.getMembers()) {
+            Player mate = Bukkit.getPlayer(u);
+            if (mate != null && alive.contains(u) && !u.equals(id)) {
+                at = mate.getLocation();
+                break;
+            }
+        }
+        if (at == null) {
+            List<Location> spots = plugin.spawns().scatter(arena().getWorld(), arena().getCenter(), 1);
+            at = spots.isEmpty() ? null : spots.get(0);
+        }
+        alive.add(id);
+        kills.putIfAbsent(id, 0);
+        resetPlayer(p, GameMode.SURVIVAL);
+        p.teleport(safeSpot(at));
+        plugin.kits().give(p, modeKit());
+        plugin.stats().add(id, "games");
+        p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 10, 4));
+        Txt.title(p, "§a§lLatejoin", "§7Team " + t.getDisplayName());
+        broadcast("§a" + p.getName() + " §7spielt nach" + (s().isSolo() ? "" : " §8(Team " + t.getDisplayName() + "§8)") + "§7. §8[" + alive.size() + " übrig]");
+        lastListName.remove(id);
+        return null;
+    }
+
+    /** /remove: Spieler aus der Runde nehmen (kein Kill, kein Strike). */
+    public String removeFromRound(Player p) {
+        if (!state.isIngame() || !alive.contains(p.getUniqueId())) return "§c" + p.getName() + " spielt nicht mit.";
+        eliminate(p.getUniqueId(), null, p.getLocation(), "wurde vom Host entfernt");
+        toSpectator(p, p.getLocation());
+        return null;
+    }
+
+    /** /teamchange: Team wechseln – in der Lobby immer, in der Runde nur bis Ende der Schutzzeit. */
+    public String teamChange(Player p, MTeam t) {
+        if (s().isSolo()) return "§cIm Solo-Modus gibt es keine Teams.";
+        if (state == GameState.RUNNING || state == GameState.ENDING) return "§cTeamwechsel nur bis Ende der Schutzzeit.";
+        UUID id = p.getUniqueId();
+        plugin.teams().leave(id);
+        t.getMembers().add(id); // Host darf auch über die Teamgröße hinaus
+        if (state.isIngame() && !plugin.teams().getTeams().contains(t)) plugin.teams().getTeams().add(t);
+        lastListName.remove(id);
+        Txt.send(p, s().prefix + "§7Du bist jetzt in Team " + t.getDisplayName() + "§7.");
+        return null;
+    }
+
+    /** /border: Border sofort setzen bzw. über Zeit verkleinern. In der Lobby = Startgröße. */
+    public String hostBorder(int size, int seconds) {
+        if (!state.isIngame()) {
+            s().borderInitial = size;
+            s().save();
+            return null;
+        }
+        World w = arena().getWorld();
+        if (w == null) return "§cKeine Arena.";
+        if (seconds > 0) {
+            closeNether("Die Border schrumpft");
+            shrinking = true;
+            shrinkTotal = seconds;
+            aliveAtShrink = Math.max(1, alive.size());
+        }
+        w.getWorldBorder().setSize(size, Math.max(0, seconds));
+        broadcast("§c§lBorder: §b" + size + " §7Blöcke" + (seconds > 0 ? " in §e" + Txt.time(seconds) : " §7(sofort)") + "§7.");
+        sound(Sound.BLOCK_BEACON_DEACTIVATE, 0.8f);
+        return null;
+    }
+
+    /** /finale: Showdown bzw. End-Finale nach Countdown starten. */
+    public String startFinale(int countdown) {
+        if (state != GameState.RUNNING) return "§cFinale geht nur, wenn PvP aktiv ist.";
+        if (showdownDone || finaleTask != -1) return "§cDas Finale läuft bereits.";
+        String name = s().has(Feature.END_FINALE) ? "End-Finale" : "Finale";
+        int[] left = {Math.max(0, countdown)};
+        finaleTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (state != GameState.RUNNING || showdownDone) {
+                Bukkit.getScheduler().cancelTask(finaleTask);
+                finaleTask = -1;
+                return;
+            }
+            if (left[0] <= 0) {
+                Bukkit.getScheduler().cancelTask(finaleTask);
+                finaleTask = -1;
+                showdown();
+                return;
+            }
+            if (left[0] % 30 == 0 || left[0] <= 5 || left[0] == 10 || left[0] == 15) {
+                broadcast("§4§l" + name + " §7in §e" + Txt.time(left[0]) + "§7!");
+                sound(Sound.BLOCK_NOTE_BLOCK_PLING, 1f);
+            }
+            left[0]--;
+        }, 0L, 20L).getTaskId();
+        return null;
+    }
+
+    /** /mod <Spieler>: anderen Spieler zum Zuschauer/Mod machen. */
+    public void setMod(Player p, boolean on) {
+        if (on != mods.contains(p.getUniqueId())) toggleMod(p);
     }
 
     private static String color(MTeam t, String def) {

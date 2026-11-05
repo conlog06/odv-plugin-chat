@@ -48,6 +48,7 @@ public class OdvPlugin extends JavaPlugin {
     private de.crafterteam.odv.feature.EventManager events;
     private de.crafterteam.odv.feature.Heatmap heatmap;
     private de.crafterteam.odv.game.Punishments punish;
+    private de.crafterteam.odv.game.HostCommands host;
 
     @Override
     public void onEnable() {
@@ -97,6 +98,14 @@ public class OdvPlugin extends JavaPlugin {
                 pc.setTabCompleter(admin);
             }
         }
+        host = new de.crafterteam.odv.game.HostCommands(this);
+        for (String c : de.crafterteam.odv.game.HostCommands.COMMANDS) {
+            var hc = getCommand(c);
+            if (hc != null) {
+                hc.setExecutor(host);
+                hc.setTabCompleter(host);
+            }
+        }
         for (String c : de.crafterteam.odv.game.Punishments.COMMANDS) {
             var pc = getCommand(c);
             if (pc != null) {
@@ -104,7 +113,7 @@ public class OdvPlugin extends JavaPlugin {
                 pc.setTabCompleter(punish);
             }
         }
-        for (Listener l : new Listener[]{punish, admin, new GameListener(this), combat, scenarios, features, antiXray, wand}) {
+        for (Listener l : new Listener[]{punish, host, admin, new GameListener(this), combat, scenarios, features, antiXray, wand}) {
             Bukkit.getPluginManager().registerEvents(l, this);
         }
         game.applyWorldSettings();
@@ -177,4 +186,5 @@ public class OdvPlugin extends JavaPlugin {
     public de.crafterteam.odv.feature.EventManager events() { return events; }
     public de.crafterteam.odv.feature.Heatmap heatmap() { return heatmap; }
     public de.crafterteam.odv.game.Punishments punish() { return punish; }
+    public de.crafterteam.odv.game.HostCommands host() { return host; }
 }

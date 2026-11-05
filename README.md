@@ -1,7 +1,7 @@
-# ODVMeetup 3.3 – ODV & Meetup für Paper 26.3
+# ODVMeetup 3.4 – ODV & Meetup für Paper 26.3
 
 ## ⬇️ Download
-**[ODVMeetup-3.3.1.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.3.1.jar)**
+**[ODVMeetup-3.4.0.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.4.0.jar)**
 · alle Versionen unter [Releases](https://github.com/conlog06/odv-plugin-chat/releases)
 
 Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite-Treiber bringt Paper mit).
@@ -28,6 +28,20 @@ Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite
   Teams aufgemacht wie nötig (mindestens 2). Sind trotzdem alle im selben Team, wird es automatisch geteilt.
 - **/mod**: Hoster und Team schalten den Mod-Modus an – sie spielen nicht mit, sind Zuschauer und stehen mit **MOD** im Tab.
 - **Host-Menü**: Runde starten/stoppen, Modus, Teams, PvP, Szenarien, Features, Abstimmung, **Map erstellen** und Mod-Modus.
+
+## Host-Ablauf (wie Mega-Events)
+**Vorbereitung:** `/host` (öffnet das Host-Menü, man spielt automatisch nicht mit) → Teams, Szenarien, Features, PvP
+einstellen → `/createworld` (Plains-Spawn mit Portal + Spawnlöchern) → `/worlds` zum Nachschauen (Nether-Portal checken)
+→ `/announce 20:00 [Text]`.
+**Runde:** `/start 60` · `/border 300 [Sekunden]` · `/finale 30` (ab 4–6 Spielern).
+**Specen & Support:** `/gm 3` · `/tp` · `/freeze <Spieler>` (Ausloggen = Ban) · `/latejoin <Spieler> [Team]` ·
+`/setkit <Spieler>` · `/teamchange <Spieler> <Team>` (bis Ende der Schutzzeit) · `/remove <Spieler>` ·
+`/revive <Spieler>` (nur mit Clip – gibt das Inventar vom Tod zurück) · `/mod <Spieler>` · `/invsee` · `/v` · `/fly`.
+Alles geht auch als `/meetup <befehl>` (`reset`, `setlobbyspawn`, `border`, `add`, `setstarterkit`, `team`, `remove`, `revive`, `freeze`).
+
+**Ban-System:** `/ban` zeigt die Ban-IDs, `/ban <Spieler> <ID>` bannt/mutet passend (IDs in `punishments.ids`),
+`/check <Spieler>`, `/history <Spieler>`.
+**Reports:** `/report <Spieler> <Grund>` · Team: `/reports` (mit [TP] und [✔]), `/report login|logout` (immer ausloggen, wenn du selbst mitspielst).
 
 ## Neue Welt nach jeder Runde
 `world.reset-after-round: LIVE` (Standard): Nach jeder Runde – auch nach `/odv stop` – wird die Arena gelöscht und mit
@@ -126,4 +140,4 @@ Content, Premium, Spieler – alles in `plugins/ODVMeetup/ranks.yml` anpassbar. 
 | `/odv announce <Text>` · `/odv changelog post` | Chat + Discord-Webhook |
 
 ## Selbst bauen
-`mvn package` (JDK 21+) → `target/ODVMeetup-3.3.1.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.
+`mvn package` (JDK 21+) → `target/ODVMeetup-3.4.0.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.

@@ -53,6 +53,22 @@ punishments:
     5: 7d
     6: perm
   appeal: "Entbannungsantrag im Discord"
+  freeze-logout-ban: 30d      # Ausloggen während /freeze (leer = kein Ban)
+  # Ban-IDs für /ban <Spieler> <ID>  (type: BAN oder MUTE, duration: 30m 12h 7d 2w perm)
+  ids:
+    1: {reason: "Hacking / unerlaubte Mods", type: BAN, duration: 30d}
+    2: {reason: "Teaming / Truce", type: BAN, duration: 3d}
+    3: {reason: "Bugusing", type: BAN, duration: 1d}
+    4: {reason: "Beleidigung", type: MUTE, duration: 1h}
+    5: {reason: "Spam / Caps", type: MUTE, duration: 30m}
+    6: {reason: "Werbung", type: MUTE, duration: 1d}
+    7: {reason: "Unangemessener Name / Skin", type: BAN, duration: 7d}
+    8: {reason: "Combat-Log / Ausloggen im Freeze", type: BAN, duration: 7d}
+    9: {reason: "Banumgehung", type: BAN, duration: perm}
+    10: {reason: "Schwerer Regelverstoß", type: BAN, duration: perm}
+
+host:
+  auto-mod: true              # wer /host macht, spielt automatisch nicht mit (/mod zum Umschalten)
 
 border:
   initial: 600
