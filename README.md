@@ -1,7 +1,7 @@
-# ODVMeetup 3.5 – ODV & Meetup für Paper 26.3
+# ODVMeetup 3.6 – ODV & Meetup für Paper 26.3
 
 ## ⬇️ Download
-**[ODVMeetup-3.5.0.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.5.0.jar)**
+**[ODVMeetup-3.6.0.jar (Paper 26.3)](https://github.com/conlog06/odv-plugin-chat/releases/latest/download/ODVMeetup-3.6.0.jar)**
 · alle Versionen unter [Releases](https://github.com/conlog06/odv-plugin-chat/releases)
 
 Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite-Treiber bringt Paper mit).
@@ -23,10 +23,20 @@ Server: **Paper 26.3**, Java 21+ · keine weiteren Plugins nötig (MySQL-/SQLite
 - **Plattformen**: eigene `.schem` (WorldEdit 7) oder eingebaute Plattform.
 - **Zufällig**: sichere Orte mit Mindestabstand.
 
+## Zuschauer
+Ausgeschiedene und Mods fliegen **unsichtbar** über die Map (Lebende sehen sie nicht, sie stören nicht – kein Schaden,
+keine Items, Pfeile fliegen durch) und haben Items:
+**Kompass** = Spieler-Teleporter (nach Team, mit Leben, Kills, Welt, Distanz, „im Kampf“) · **Zum letzten Kampf** ·
+**Wetten** · **Optionen** (Nachtsicht, Flugtempo 1–4, andere Zuschauer zeigen, Noclip – zurück mit `/spec`) · **Lobby**.
+Mit `match.spectator-radius` bleiben Zuschauer im Spawnbereich (Team bekommt keine Infos).
+
 ## Teams & Hoster
 - **Smartes Auffüllen**: Wer kein Team wählt, kommt immer ins Team mit den wenigsten Spielern; es werden so viele
   Teams aufgemacht wie nötig (mindestens 2). Sind trotzdem alle im selben Team, wird es automatisch geteilt.
 - **/mod**: Hoster und Team schalten den Mod-Modus an – sie spielen nicht mit, sind Zuschauer und stehen mit **MOD** im Tab.
+- **Spieler-Übersicht** (`/spieler` oder Host-Menü): alle Spieler geordnet (Lebend nach Team → Ausgeschieden →
+  Zuschauer → Mods) mit Aktionen per Klick: TP, Inventar, Freeze, Status, Revive, Latejoin, Team wechseln, Kit, Mod, Kick, Bannen (Ban-ID).
+- **Tabliste** im Spiel: Lebende nach Team oben, Zuschauer mit ☠ darunter.
 - **Host-Menü**: Runde starten/stoppen, Modus, Teams, PvP, Szenarien, Features, Abstimmung, **Map erstellen** und Mod-Modus.
 
 ## Host-Ablauf (wie Mega-Events)
@@ -150,4 +160,4 @@ Content, Premium, Spieler – alles in `plugins/ODVMeetup/ranks.yml` anpassbar. 
 | `/odv announce <Text>` · `/odv changelog post` | Chat + Discord-Webhook |
 
 ## Selbst bauen
-`mvn package` (JDK 21+) → `target/ODVMeetup-3.5.0.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.
+`mvn package` (JDK 21+) → `target/ODVMeetup-3.6.0.jar`. Bei jedem Push baut GitHub Actions automatisch ein Release.

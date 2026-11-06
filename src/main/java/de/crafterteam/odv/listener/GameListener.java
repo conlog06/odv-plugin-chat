@@ -226,7 +226,7 @@ public class GameListener implements Listener {
         // Von der Lobby-Insel gefallen?
         if (!e.hasChangedBlock() || from.getBlockY() == to.getBlockY()) return;
         Location lobby = plugin.arena().getLobby();
-        if (lobby == null || p.getGameMode() == GameMode.SPECTATOR || builder(p) || !p.getWorld().equals(lobby.getWorld())) return;
+        if (lobby == null || p.getGameMode() == GameMode.SPECTATOR || plugin.spectators().isSpec(p) || builder(p) || !p.getWorld().equals(lobby.getWorld())) return;
         boolean inLobbyPhase = locked() && !game().isAlive(p);
         if ((inLobbyPhase || practice(p)) && to.getY() < lobby.getY() - 12) {
             if (practice(p)) plugin.practice().respawn(p);

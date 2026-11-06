@@ -136,6 +136,8 @@ public class HostGui implements InventoryHolder {
             if (plugin.arena().getWorld() != null) plugin.spawns().resetArena(p);
             else plugin.spawns().quickSetup(p);
         });
+        set(40, plugin.items().of(Material.PLAYER_HEAD).name("§a§lSpieler-Übersicht").lore("§7Alle Spieler geordnet nach Status/Team,", "§7mit Aktionen (TP, Freeze, Revive, Latejoin …)", "", "§eKlick: §7öffnen §8(/spieler)").build(),
+                (p, c) -> ExtraMenus.players(plugin, p, 0));
         set(38, plugin.items().of(Material.CHEST).name("§6§lKits").lore("§7Aktiv: §f" + nz(plugin.kits().active(s().mode == Settings.Mode.ODV
                 ? de.crafterteam.odv.data.Kits.Type.ODV : de.crafterteam.odv.data.Kits.Type.MEETUP)), "§eKlick: §7Kit auswählen").build(),
                 (p, c) -> ExtraMenus.kits(plugin, p));

@@ -70,6 +70,10 @@ public class OdvCommand implements TabExecutor {
                 if (p != null) coords(p);
                 return true;
             }
+            case "spec" -> {
+                if (p != null) plugin.spectators().specCommand(p);
+                return true;
+            }
             case "mod" -> {
                 if (args.length >= 1) { // /mod <Spieler>: anderen zum Zuschauer machen
                     if (!plugin.host().isHost(sender)) {
@@ -152,7 +156,7 @@ public class OdvCommand implements TabExecutor {
                 return true;
             }
             case "spec", "spectate" -> {
-                if (p != null) Menus.spectate(plugin, p, 0);
+                if (p != null) plugin.spectators().specCommand(p);
                 return true;
             }
             case "bet", "wette" -> {
@@ -359,11 +363,13 @@ public class OdvCommand implements TabExecutor {
         Player online = Bukkit.getPlayerExact(name);
         if (online != null) {
             Stats.Entry e = plugin.stats().get(online.getUniqueId());
-            print(to, online.getName(), e.v);
+            if (to instanceof Player tp) de.crafterteam.odv.gui.ExtraMenus.stats(plugin, tp, online.getName(), e.v, online);
+            else print(to, online.getName(), e.v);
             return;
         }
         plugin.stats().lookup(name, v -> {
             if (v == null) tell(to, "§cSpieler nicht gefunden.");
+            else if (to instanceof Player tp) de.crafterteam.odv.gui.ExtraMenus.stats(plugin, tp, name, v, null);
             else print(to, name, v);
         });
     }

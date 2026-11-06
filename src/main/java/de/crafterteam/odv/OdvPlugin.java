@@ -49,6 +49,7 @@ public class OdvPlugin extends JavaPlugin {
     private de.crafterteam.odv.feature.Heatmap heatmap;
     private de.crafterteam.odv.game.Punishments punish;
     private de.crafterteam.odv.game.HostCommands host;
+    private de.crafterteam.odv.game.SpectatorManager spectators;
 
     @Override
     public void onEnable() {
@@ -84,7 +85,7 @@ public class OdvPlugin extends JavaPlugin {
         wand = new Wand(this);
         command = new OdvCommand(this);
 
-        for (String c : new String[]{"odv", "team", "practice", "szenarios", "backpack", "ping", "coords", "mod", "lb", "teamliste", "changelog", "rank", "sc", "mute", "unmute"}) {
+        for (String c : new String[]{"odv", "team", "practice", "szenarios", "backpack", "ping", "coords", "mod", "spec", "lb", "teamliste", "changelog", "rank", "sc", "mute", "unmute"}) {
             var pc = getCommand(c);
             if (pc != null) {
                 pc.setExecutor(command);
@@ -99,6 +100,7 @@ public class OdvPlugin extends JavaPlugin {
             }
         }
         host = new de.crafterteam.odv.game.HostCommands(this);
+        spectators = new de.crafterteam.odv.game.SpectatorManager(this);
         for (String c : de.crafterteam.odv.game.HostCommands.COMMANDS) {
             var hc = getCommand(c);
             if (hc != null) {
@@ -113,7 +115,7 @@ public class OdvPlugin extends JavaPlugin {
                 pc.setTabCompleter(punish);
             }
         }
-        for (Listener l : new Listener[]{new de.crafterteam.odv.feature.EnchantLimiter(this), punish, host, admin, new GameListener(this), combat, scenarios, features, antiXray, wand}) {
+        for (Listener l : new Listener[]{spectators, new de.crafterteam.odv.feature.EnchantLimiter(this), punish, host, admin, new GameListener(this), combat, scenarios, features, antiXray, wand}) {
             Bukkit.getPluginManager().registerEvents(l, this);
         }
         game.applyWorldSettings();
@@ -187,4 +189,5 @@ public class OdvPlugin extends JavaPlugin {
     public de.crafterteam.odv.feature.Heatmap heatmap() { return heatmap; }
     public de.crafterteam.odv.game.Punishments punish() { return punish; }
     public de.crafterteam.odv.game.HostCommands host() { return host; }
+    public de.crafterteam.odv.game.SpectatorManager spectators() { return spectators; }
 }

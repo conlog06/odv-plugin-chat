@@ -1,6 +1,18 @@
 # Wird mit /changelog angezeigt und mit /odv changelog post an Discord geschickt.
 # Neueste Version oben. Eigene Einträge einfach ergänzen.
 versions:
+  - version: "3.6.0"
+    date: "06.11.2026"
+    changes:
+      - "Neues Zuschauer-System: unsichtbar fliegen mit Kompass (Spieler-Teleporter nach Team mit Leben, Kills, Distanz)"
+      - "Zuschauer-Items: Zum letzten Kampf, Wetten, Optionen (Nachtsicht, Flugtempo, andere Zuschauer, Noclip) und Lobby"
+      - "Zuschauer stören nicht: kein Schaden, keine Items, keine Kollision, Pfeile fliegen durch"
+      - "Spieler-Übersicht (/spieler, Host-Menü): alle Spieler geordnet nach Status und Team mit Aktionen"
+      - "Aktionen per Klick: TP, Inventar, Freeze, Revive, Latejoin, Team wechseln, Kit, Mod, Kick, Bannen mit Ban-ID"
+      - "Tabliste im Spiel geordnet: Lebende nach Team oben, Zuschauer darunter"
+      - "Statistik als Menü mit Siegquote und K/D"
+      - "First Blood und Killstreak-Ansagen (3, 5, 7, 10 Kills)"
+      - "Performance: Zuschauer laden weniger Chunks, Actionbar flackert nicht mehr im Kampf, Tab-Updates nur bei Änderungen"
   - version: "3.5.0"
     date: "06.11.2026"
     changes:

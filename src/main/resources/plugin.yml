@@ -43,6 +43,12 @@ commands:
     description: Mute aufheben
   mod:
     description: Mod-Modus - Runde moderieren statt mitspielen (/mod [Spieler])
+  spieler:
+    description: Geordnete Spieler-Uebersicht mit Host-Aktionen
+    aliases: [players]
+  spec:
+    description: Zuschauen - Spieler-Teleporter, aus Noclip zurueck
+    aliases: [spectate]
   host:
     description: Host werden und Host-Menue oeffnen
   start:

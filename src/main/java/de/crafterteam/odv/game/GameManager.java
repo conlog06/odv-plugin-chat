@@ -64,6 +64,7 @@ public class GameManager {
     private int displayTick;
     private String date;
     private final Map<UUID, String> lastTab = new HashMap<>(), lastListName = new HashMap<>();
+    private final Map<UUID, Integer> lastOrder = new HashMap<>();
     private int aliveAtShrink;
 
     private final Set<UUID> alive = new HashSet<>();
@@ -71,6 +72,7 @@ public class GameManager {
     private final Set<UUID> mods = new HashSet<>();
     private final Map<UUID, ItemStack[]> deathInventories = new HashMap<>();
     private final Set<UUID> participated = new HashSet<>();
+    private boolean firstBlood;
     private int finaleTask = -1;
     private final Map<UUID, Integer> kills = new HashMap<>();
     private final Map<UUID, Location> deathLocations = new HashMap<>();
@@ -372,6 +374,7 @@ public class GameManager {
         Collections.shuffle(spawns);
         alive.clear();
         participated.clear();
+        firstBlood = false;
         kills.clear();
         deathLocations.clear();
         disconnected.clear();
@@ -476,6 +479,24 @@ public class GameManager {
             String hp = String.format(java.util.Locale.ROOT, "%.1f", killer.getHealth() / 2.0);
             broadcast(name + " §7wurde von " + color(kt, "§a") + killer.getName() + " §8(§c❤ " + hp + "§8) §7getötet. §8[" + alive.size() + " übrig]");
             killer.playSound(killer.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
+            if (!firstBlood && !plugin.teams().sameTeam(id, killer.getUniqueId())) {
+                firstBlood = true;
+                broadcast("§4§lFIRST BLOOD! " + color(kt, "§a") + killer.getName() + " §7holt den ersten Kill der Runde.");
+                sound(Sound.ENTITY_WITHER_SPAWN, 1.6f);
+            }
+            int k = kills.getOrDefault(killer.getUniqueId(), 0);
+            String streak = switch (k) {
+                case 3 -> "§e§lKILLING SPREE";
+                case 5 -> "§6§lRAMPAGE";
+                case 7 -> "§c§lUNAUFHALTSAM";
+                case 10 -> "§4§lLEGENDÄR";
+                default -> null;
+            };
+            if (streak != null) {
+                broadcast(streak + " §8» " + color(kt, "§a") + killer.getName() + " §7hat §c" + k + " Kills§7!");
+                Txt.title(killer, streak, "§c" + k + " Kills");
+                sound(Sound.ENTITY_ENDER_DRAGON_GROWL, 1.8f);
+            }
         } else {
             broadcast(name + " §7" + reason + ". §8[" + alive.size() + " übrig]");
         }
@@ -722,7 +743,7 @@ public class GameManager {
                     }
                     for (UUID u : winner.getMembers()) {
                         Player p = Bukkit.getPlayer(u);
-                        if (p != null && p.getGameMode() != GameMode.SPECTATOR) firework(p.getLocation());
+                        if (p != null && alive.contains(u)) firework(p.getLocation());
                     }
                 }
             }.runTaskTimer(plugin, 10L, 25L);
@@ -777,6 +798,7 @@ public class GameManager {
                 if (e instanceof Item || e instanceof Projectile || e instanceof TNTPrimed || e instanceof ExperienceOrb || e instanceof FallingBlock) e.remove();
             }
         }
+        plugin.spectators().clear();
         for (Player p : Bukkit.getOnlinePlayers()) toLobby(p);
         plugin.punish().clearCombat();
         if (s().worldReset == de.crafterteam.odv.Settings.WorldReset.LIVE && arena().isDirty()) {
@@ -817,6 +839,9 @@ public class GameManager {
 
     public void onQuit(Player p) {
         boards.remove(p.getUniqueId());
+        lastOrder.remove(p.getUniqueId());
+        lastTab.remove(p.getUniqueId());
+        lastListName.remove(p.getUniqueId());
         plugin.practice().leave(p, false);
         UUID id = p.getUniqueId();
         if (state.isLobby()) {
@@ -905,18 +930,18 @@ public class GameManager {
     }
 
     public void toSpectator(Player p, Location at) {
-        p.closeInventory();
-        p.getInventory().clear();
-        p.setGameMode(GameMode.SPECTATOR);
         if (at == null) {
             Location c = arena().getCenter();
             if (c != null) at = c.clone().add(0, 20, 0);
         }
-        if (at != null) p.teleport(at);
-        if (!state.isLobby()) {
-            Txt.send(p, s().prefix + "§7Du bist §cZuschauer§7. §b/odv spec §7beobachten"
-                    + (s().has(Feature.BETTING) ? " §8| §b/odv bet §7wetten" : ""));
+        if (state.isLobby()) { // in der Lobby kein Geist-Modus
+            p.closeInventory();
+            p.getInventory().clear();
+            p.setGameMode(GameMode.SPECTATOR);
+            if (at != null) p.teleport(at);
+            return;
         }
+        plugin.spectators().enter(p, at);
     }
 
     public void giveLobbyItems(Player p) {
@@ -951,6 +976,7 @@ public class GameManager {
     }
 
     public void resetPlayer(Player p, GameMode mode) {
+        plugin.spectators().leave(p);
         p.setGameMode(mode);
         var maxHp = p.getAttribute(Attribute.MAX_HEALTH);
         if (maxHp != null) maxHp.setBaseValue(20.0);
@@ -1051,7 +1077,7 @@ public class GameManager {
             double half = w.getWorldBorder().getSize() / 2.0;
             Location bc = w.getWorldBorder().getCenter();
             for (Player p : online) {
-                if (p.getWorld() != w) continue;
+                if (p.getWorld() != w || plugin.punish().inCombat(p)) continue;
                 int dist = (int) Math.max(0, half - Math.max(Math.abs(p.getX() - bc.getX()), Math.abs(p.getZ() - bc.getZ())));
                 String col = dist < 15 ? "§c" : dist < 50 ? "§e" : "§a";
                 Txt.actionBar(p, "§7Der §bSpawn §7ist bei §bX: " + bc.getBlockX() + " §7und §bZ: " + bc.getBlockZ()
@@ -1070,7 +1096,7 @@ public class GameManager {
         Map<String, String> prefixes = new LinkedHashMap<>();
         Map<String, Set<String>> members = new LinkedHashMap<>();
         Set<String> specs = new HashSet<>();
-        for (Player p : online) if (p.getGameMode() == GameMode.SPECTATOR) specs.add(p.getName());
+        for (Player p : online) if (p.getGameMode() == GameMode.SPECTATOR || plugin.spectators().isSpec(p)) specs.add(p.getName());
         UUID bounty = plugin.features().bountyTarget();
         boolean ingameTags = state.isIngame() || state == GameState.ENDING;
         if (ingameTags && !s().isSolo()) {
@@ -1181,6 +1207,14 @@ public class GameManager {
                 lastListName.put(id, listName);
                 p.playerListName(Txt.c(listName));
             }
+            // Tab-Reihenfolge: im Spiel Lebende nach Team, dann Zuschauer; sonst nach Rang
+            int weight = Math.max(0, plugin.ranks().of(p).weight());
+            int order = ingameTags && alive.contains(id) ? 2000 - (team == null || s().isSolo() ? 0 : team.getNumber()) : Math.max(1, weight + 1);
+            Integer lo = lastOrder.get(id);
+            if (lo == null || lo != order) {
+                lastOrder.put(id, order);
+                p.setPlayerListOrder(order);
+            }
         }
     }
 
@@ -1188,7 +1222,7 @@ public class GameManager {
     private String listName(Player p, MTeam team, boolean spectator, boolean ingame) {
         var r = plugin.ranks().of(p);
         if (mods.contains(p.getUniqueId())) return "§6§lMOD §r" + r.nameColor() + p.getName();
-        if (spectator && ingame) return "§7§o" + p.getName();
+        if (spectator && ingame) return "§8☠ §7" + p.getName();
         if (ingame && team != null && !s().isSolo()) return team.getColor() + "[" + team.getNumber() + "] " + r.nameColor() + p.getName();
         return r.prefix() + p.getName();
     }
@@ -1196,6 +1230,7 @@ public class GameManager {
     /** Vom RankManager aufgerufen, wenn sich der Rang eines Spielers ändert/geladen wurde. */
     public void onRankChanged(Player p) {
         lastListName.remove(p.getUniqueId());
+        lastOrder.remove(p.getUniqueId());
         if (state.isLobby() && !plugin.practice().isIn(p)) giveLobbyItems(p);
     }
 
@@ -1239,7 +1274,7 @@ public class GameManager {
         if (radius <= 0 || c == null) return;
         double r2 = (double) radius * radius;
         for (Player p : Bukkit.getOnlinePlayers()) {
-            if (p.getGameMode() != GameMode.SPECTATOR || p.hasPermission("odv.staff") || alive.contains(p.getUniqueId())) continue;
+            if ((p.getGameMode() != GameMode.SPECTATOR && !plugin.spectators().isSpec(p)) || p.hasPermission("odv.staff") || alive.contains(p.getUniqueId())) continue;
             Location l = p.getLocation();
             boolean outside = !l.getWorld().equals(c.getWorld());
             if (!outside) {

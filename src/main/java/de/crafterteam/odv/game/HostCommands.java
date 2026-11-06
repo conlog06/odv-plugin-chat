@@ -51,7 +51,7 @@ import java.util.regex.Pattern;
 public class HostCommands implements CommandExecutor, TabCompleter, Listener {
 
     public static final String[] COMMANDS = {"host", "start", "border", "finale", "freeze", "latejoin", "revive", "teamchange",
-            "remove", "setkit", "createworld", "worlds", "announce", "report", "reports"};
+            "remove", "setkit", "createworld", "worlds", "announce", "report", "reports", "spieler"};
 
     /** /odv- bzw. /meetup-Unterbefehle → Host-Befehl. */
     public static final Map<String, String> SUB_ALIASES = Map.ofEntries(
@@ -299,6 +299,11 @@ public class HostCommands implements CommandExecutor, TabCompleter, Listener {
                 else plugin.spawns().quickSetup(sender);
             }
             case "worlds" -> worlds(sender, a);
+            case "spieler" -> {
+                if (me == null) return;
+                if (!me.hasPermission("odv.staff") && !needHost(me)) return;
+                de.crafterteam.odv.gui.ExtraMenus.players(plugin, me, 0);
+            }
             case "announce" -> announce(sender, a);
             case "report" -> report(sender, a);
             case "reports" -> reports(sender, a);
